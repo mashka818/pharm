@@ -1,0 +1,70 @@
+{
+  "timestamp": "2025-08-05T12:04:13.790Z",
+  "systemReport": {
+    "fileCheck": {
+      "existingFiles": [
+        ".env",
+        "src/fns/fns-qr.controller.ts",
+        "src/fns/fns-qr-parser.service.ts",
+        "src/fns/fns-network.service.ts",
+        "src/fns/dto/scan-qr.dto.ts",
+        "migration_add_network_subdomain.sql",
+        "init_test_data.sql",
+        "test_qr_simple.js",
+        "utils/create_jwt_token.js"
+      ],
+      "missingFiles": []
+    },
+    "configCheck": {
+      "existingVars": [
+        "DATABASE_URL",
+        "FNS_APP_ID",
+        "FNS_AUTH_SERVICE_URL",
+        "FNS_ASYNC_SERVICE_URL",
+        "JWT_SECRET"
+      ],
+      "missingVars": []
+    },
+    "structureCheck": {
+      "existingDirs": [
+        "src/fns",
+        "src/fns/dto",
+        "utils",
+        "prisma"
+      ],
+      "missingDirs": []
+    },
+    "overallScore": 100
+  },
+  "testData": {
+    "qrCode": "t=20231201T1430&s=1234.56&fn=9287440300090728&i=12345&fp=1234567890&n=1",
+    "subdomains": [
+      "р-фарм.чекпоинт.рф",
+      "apteka-36-6.чекпоинт.рф"
+    ],
+    "tokens": {
+      "userWithNetwork": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsInJvbGUiOiJDVVNUT01FUiIsIm5ldHdvcmtJZCI6MSwiaWF0IjoxNzU0Mzk1NDUzLCJleHAiOjE3NTQ0ODE4NTN9.gpZyuJN3bEwxmIoH1oB085j9V4_xRa0DLvP1gszIWDI",
+      "userWithoutNetwork": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJ0ZXN0dXNlcjIiLCJyb2xlIjoiQ1VTVE9NRVIiLCJpYXQiOjE3NTQzOTU0NTMsImV4cCI6MTc1NDQ4MTg1M30.Pc74RxM--yqfDkhbScihblg2467bhRJDYPI_78NDnCw",
+      "admin": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc1NDM5NTQ1MywiZXhwIjoxNzU0NDgxODUzfQ.mnGs9WHffpQBfwxx8OY0jqlVTDkdM0nhMvfxx0yoGwI",
+      "company": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJyLXBoYXJtIiwicm9sZSI6IkNPTVBBTlkiLCJuZXR3b3JrSWQiOjEsImlhdCI6MTc1NDM5NTQ1MywiZXhwIjoxNzU0NDgxODUzfQ.x1wf9dXulSaI2MHUQKWI08CTaqxjkBzXottBBUnr9kM"
+    }
+  },
+  "tokens": {
+    "userWithNetwork": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsInJvbGUiOiJDVVNUT01FUiIsIm5ldHdvcmtJZCI6MSwiaWF0IjoxNzU0Mzk1NDUzLCJleHAiOjE3NTQ0ODE4NTN9.gpZyuJN3bEwxmIoH1oB085j9V4_xRa0DLvP1gszIWDI",
+    "userWithoutNetwork": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJ0ZXN0dXNlcjIiLCJyb2xlIjoiQ1VTVE9NRVIiLCJpYXQiOjE3NTQzOTU0NTMsImV4cCI6MTc1NDQ4MTg1M30.Pc74RxM--yqfDkhbScihblg2467bhRJDYPI_78NDnCw",
+    "admin": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc1NDM5NTQ1MywiZXhwIjoxNzU0NDgxODUzfQ.mnGs9WHffpQBfwxx8OY0jqlVTDkdM0nhMvfxx0yoGwI",
+    "company": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJyLXBoYXJtIiwicm9sZSI6IkNPTVBBTlkiLCJuZXR3b3JrSWQiOjEsImlhdCI6MTc1NDM5NTQ1MywiZXhwIjoxNzU0NDgxODUzfQ.x1wf9dXulSaI2MHUQKWI08CTaqxjkBzXottBBUnr9kM"
+  },
+  "curlCommands": [
+    {
+      "subdomain": "р-фарм.чекпоинт.рф",
+      "command": "curl -X POST http://localhost:4000/fns/qr/scan \\\n  -H \"Host: р-фарм.чекпоинт.рф\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"qrCode\": \"t=20231201T1430&s=1234.56&fn=9287440300090728&i=12345&fp=1234567890&n=1\",\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsInJvbGUiOiJDVVNUT01FUiIsIm5ldHdvcmtJZCI6MSwiaWF0IjoxNzU0Mzk1NDUzLCJleHAiOjE3NTQ0ODE4NTN9.gpZyuJN3bEwxmIoH1oB085j9V4_xRa0DLvP1gszIWDI\",\n    \"additionalData\": {\n      \"test\": true,\n      \"timestamp\": \"2025-08-05T12:04:13.790Z\"\n    }\n  }'",
+      "description": "Тест QR-сканирования для р-фарм.чекпоинт.рф"
+    },
+    {
+      "subdomain": "apteka-36-6.чекпоинт.рф",
+      "command": "curl -X POST http://localhost:4000/fns/qr/scan \\\n  -H \"Host: apteka-36-6.чекпоинт.рф\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"qrCode\": \"t=20231201T1430&s=1234.56&fn=9287440300090728&i=12345&fp=1234567890&n=1\",\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsInJvbGUiOiJDVVNUT01FUiIsIm5ldHdvcmtJZCI6MSwiaWF0IjoxNzU0Mzk1NDUzLCJleHAiOjE3NTQ0ODE4NTN9.gpZyuJN3bEwxmIoH1oB085j9V4_xRa0DLvP1gszIWDI\",\n    \"additionalData\": {\n      \"test\": true,\n      \"timestamp\": \"2025-08-05T12:04:13.790Z\"\n    }\n  }'",
+      "description": "Тест QR-сканирования для apteka-36-6.чекпоинт.рф"
+    }
+  ]
+}
