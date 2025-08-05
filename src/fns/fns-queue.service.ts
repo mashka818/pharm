@@ -30,13 +30,18 @@ export class FnsQueueService {
       } catch (promotionError) {
         // Если ошибка связана с отсутствием колонки promotionId, создаем без неё
         if (promotionError.message.includes('promotionId')) {
+          const createData: any = {
+            qrData: qrData as any,
+            status: 'pending',
+            attempts: 0,
+          };
+          
+          if (customerId) {
+            createData.customerId = customerId;
+          }
+          
           request = await this.prisma.fnsRequest.create({
-            data: {
-              qrData: qrData as any,
-              status: 'pending',
-              attempts: 0,
-              customerId,
-            },
+            data: createData,
           });
         } else {
           throw promotionError;

@@ -34,9 +34,9 @@ export class FnsCheckService {
   }
 
   private async makeSendMessageRequest(qrData: any, token: string): Promise<string> {
-    const serviceUrl = process.env.FNS_ASYNC_SERVICE_URL || 'https://openapi.nalog.ru:8090/open-api/ais3/KktService/0.1';
-    const appId = process.env.FNS_APP_ID;
-
+    const baseUrl = process.env.FTX_API_URL || 'https://openapi.nalog.ru:8090';
+    const serviceUrl = `${baseUrl}/open-api/ais3/KktService/0.1`;
+    
     const soapRequest = `
       <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
         <soap-env:Body>
@@ -60,22 +60,36 @@ export class FnsCheckService {
     `;
 
     try {
+      this.logger.log(`Sending SOAP request to: ${serviceUrl}`);
+      
       const response = await axios.post(serviceUrl, soapRequest, {
         headers: {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:SendMessageRequest',
           'FNS-OpenApi-Token': token,
-          'FNS-OpenApi-UserToken': appId,
+          // Убираем FNS-OpenApi-UserToken так как он deprecated согласно документации
         },
         timeout: 30000,
       });
 
       const messageId = this.parseSendMessageResponse(response.data);
+      this.logger.log(`Successfully sent message, received ID: ${messageId}`);
       return messageId;
     } catch (error) {
       if (error.response?.status === 429) {
         this.logger.error('Rate limiting error from FNS');
         throw new Error('Rate limiting error from FNS');
+      }
+      
+      // Специальная обработка ошибок доступа по IP
+      if (error.response?.data?.includes('Доступ к сервису для переданного IP, запрещен')) {
+        this.logger.error('IP address not whitelisted for FNS KktService');
+        throw new Error('IP address not whitelisted for FNS KktService');
+      }
+      
+      if (error.response?.data?.includes('Доступ к сервису для token запрещен')) {
+        this.logger.error('Invalid or expired FNS token');
+        throw new Error('Authentication failed - invalid token');
       }
       
       this.logger.error('SOAP SendMessage request failed:', error.response?.data || error.message);
@@ -84,8 +98,8 @@ export class FnsCheckService {
   }
 
   private async makeGetMessageRequest(messageId: string, token: string): Promise<any> {
-    const serviceUrl = process.env.FNS_ASYNC_SERVICE_URL || 'https://openapi.nalog.ru:8090/open-api/ais3/KktService/0.1';
-    const appId = process.env.FNS_APP_ID;
+    const baseUrl = process.env.FTX_API_URL || 'https://openapi.nalog.ru:8090';
+    const serviceUrl = `${baseUrl}/open-api/ais3/KktService/0.1`;
 
     const soapRequest = `
       <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
@@ -104,7 +118,7 @@ export class FnsCheckService {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:GetMessageRequest',
           'FNS-OpenApi-Token': token,
-          'FNS-OpenApi-UserToken': appId,
+          // Убираем FNS-OpenApi-UserToken так как он deprecated согласно документации
         },
         timeout: 30000,
       });
@@ -117,9 +131,21 @@ export class FnsCheckService {
         throw new Error('Rate limiting error from FNS');
       }
       
-      if (error.response?.data?.includes('MessageNotFoundFault')) {
+      if (error.response?.data?.includes('MessageNotFoundFault') || 
+          error.response?.data?.includes('По переданному MessageId') ||
+          error.response?.data?.includes('сообщение не найдено')) {
         this.logger.error('Message not found in FNS');
         throw new Error('Message not found in FNS');
+      }
+      
+      if (error.response?.data?.includes('Доступ к сервису для переданного IP, запрещен')) {
+        this.logger.error('IP address not whitelisted for FNS KktService');
+        throw new Error('IP address not whitelisted for FNS KktService');
+      }
+      
+      if (error.response?.data?.includes('Доступ к сервису для token запрещен')) {
+        this.logger.error('Invalid or expired FNS token');
+        throw new Error('Authentication failed - invalid token');
       }
       
       this.logger.error('SOAP GetMessage request failed:', error.response?.data || error.message);

@@ -51,11 +51,13 @@ export class FnsAuthService {
   }
 
   private async makeAuthRequest(): Promise<string> {
-    const masterToken = process.env.FNS_MASTER_TOKEN || process.env.FTX_TOKEN;
-    const authServiceUrl = process.env.FNS_AUTH_SERVICE_URL || 'https://openapi.nalog.ru:8090/open-api/AuthService/0.1';
+    // Используем корректный токен из данных сервиса
+    const masterToken = process.env.FTX_TOKEN || 'LFgDIA4yBZjW6h174iwVDcRoDHhjmpuFLtAX3kHPT9ctgggajk36aLJIzIcs2kZyKvTqLy4rSEHi7KOgY0fuNHKPbGCekDg9qjpin04K4ZyfolqtwDBZ6f6Isja3MMWe';
+    const authServiceUrl = process.env.FTX_API_URL || 'https://openapi.nalog.ru:8090';
+    const authEndpoint = `${authServiceUrl}/open-api/AuthService/0.1`;
 
     if (!masterToken) {
-      throw new Error('FNS_MASTER_TOKEN not configured');
+      throw new Error('FTX_TOKEN not configured');
     }
 
     const soapRequest = `
@@ -76,7 +78,9 @@ export class FnsAuthService {
     `;
 
     try {
-      const response = await axios.post(authServiceUrl, soapRequest, {
+      this.logger.log(`Attempting FNS authentication with endpoint: ${authEndpoint}`);
+      
+      const response = await axios.post(authEndpoint, soapRequest, {
         headers: {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:GetMessageRequest',
@@ -89,6 +93,13 @@ export class FnsAuthService {
       return token;
     } catch (error) {
       this.logger.error('SOAP auth request failed:', error.response?.data || error.message);
+      
+      // Специальная обработка ошибки доступа по IP
+      if (error.response?.data?.includes('Доступ к сервису для переданного IP, запрещен')) {
+        this.logger.error('IP address is not whitelisted in FNS. Please contact FNS support to add your server IP to the whitelist.');
+        throw new Error('IP address not whitelisted in FNS. Contact support to add IP: ' + (process.env.PROD_SERVER_IP || 'current server IP'));
+      }
+      
       throw new Error('FNS authentication failed');
     }
   }
