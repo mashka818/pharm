@@ -2,6 +2,12 @@ const axios = require('axios');
 
 const BASE_URL = 'http://localhost:4000/api';
 
+// Учетные данные админа из .env
+const ADMIN_CREDENTIALS = {
+  username: 'admin',
+  password: 'admin'
+};
+
 // Тестовые данные QR-кода (пример из документации ФНС)
 const testQrData = {
   qrData: 't=20190409T1638&s=2400.00&fn=9287440300090728&i=77133&fp=1482926127&n=1'
@@ -19,7 +25,19 @@ const testReceiptData = {
 async function testFnsIntegration() {
   console.log('🚀 Тестирование интеграции ФНС...\n');
 
+  let adminToken = null;
+
   try {
+    // 0. Аутентификация админа для доступа к защищенным endpoints
+    console.log('0️⃣ Аутентификация админа...');
+    try {
+      const authResponse = await axios.post(`${BASE_URL}/auth/login/admin`, ADMIN_CREDENTIALS);
+      adminToken = authResponse.data.access;
+      console.log('✅ Админ успешно аутентифицирован');
+    } catch (error) {
+      console.log('⚠️ Ошибка аутентификации админа:', error.response?.data?.message || error.message);
+      console.log('   Продолжаем тестирование без защищенных endpoints...');
+    }
     // 1. Тест парсинга QR-кода
     console.log('1️⃣ Тестирование парсинга QR-кода...');
     const parseResponse = await axios.post(`${BASE_URL}/receipt/parse-qr`, testQrData);
@@ -71,21 +89,38 @@ async function testFnsIntegration() {
 
     // 4. Проверка статистики очереди
     console.log('\n4️⃣ Проверка статистики очереди...');
-    try {
-      const statsResponse = await axios.get(`${BASE_URL}/receipt/stats/queue`);
-      console.log('📈 Статистика очереди:', JSON.stringify(statsResponse.data, null, 2));
-    } catch (error) {
-      console.log('⚠️ Статистика очереди недоступна (требуется аутентификация)');
+    if (adminToken) {
+      try {
+        const statsResponse = await axios.get(`${BASE_URL}/receipt/stats/queue`, {
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        console.log('📈 Статистика очереди:', JSON.stringify(statsResponse.data, null, 2));
+      } catch (error) {
+        console.log('❌ Ошибка получения статистики очереди:', error.response?.data?.message || error.message);
+      }
+    } else {
+      console.log('⚠️ Статистика очереди недоступна (нет токена аутентификации)');
     }
 
     // 5. Проверка дневного лимита
     console.log('\n5️⃣ Проверка дневного лимита...');
-    try {
-      const limitResponse = await axios.get(`${BASE_URL}/receipt/stats/daily-count`);
-      console.log('📊 Дневной лимит:', JSON.stringify(limitResponse.data, null, 2));
-    } catch (error) {
-      console.log('⚠️ Информация о дневном лимите недоступна (требуется аутентификация)');
+    if (adminToken) {
+      try {
+        const limitResponse = await axios.get(`${BASE_URL}/receipt/stats/daily-count`, {
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        console.log('📊 Дневной лимит:', JSON.stringify(limitResponse.data, null, 2));
+      } catch (error) {
+        console.log('❌ Ошибка получения информации о лимите:', error.response?.data?.message || error.message);
+      }
+    } else {
+      console.log('⚠️ Информация о дневном лимите недоступна (нет токена аутентификации)');
     }
+
+    // 6. Тест истории кешбека (требует клиентского токена)
+    console.log('\n6️⃣ Проверка истории кешбека клиента...');
+    console.log('ℹ️ Для тестирования истории кешбека нужен реальный клиент в системе');
+    console.log('   Этот тест можно расширить при наличии тестового клиента');
 
     console.log('\n🎉 Тестирование завершено!');
     console.log('\n📝 Примечания:');
