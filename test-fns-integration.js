@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:4000';
+const BASE_URL = 'http://localhost:4000/api';
 
 // Тестовые данные QR-кода (пример из документации ФНС)
 const testQrData = {

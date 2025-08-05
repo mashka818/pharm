@@ -5,6 +5,7 @@ import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
 import { ParseQrDto, QrParseResultDto } from './dto/parse-qr.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { Public } from '../decorators/public.decorator';
 
 @ApiTags('FNS Receipt Verification')
 @Controller('receipt')
@@ -22,6 +23,7 @@ export class FnsController {
   }
 
   @Post('verify/test')
+  @Public()
   @ApiOperation({ summary: 'Test receipt verification without authentication (no cashback)' })
   @ApiResponse({ status: 200, description: 'Receipt verification started' })
   @ApiResponse({ status: 400, description: 'Invalid QR data' })
@@ -31,6 +33,7 @@ export class FnsController {
   }
 
   @Post('parse-qr')
+  @Public()
   @ApiOperation({ summary: 'Parse QR code data from receipt' })
   @ApiResponse({ status: 200, description: 'QR code parsed successfully', type: QrParseResultDto })
   @ApiResponse({ status: 400, description: 'Invalid QR data' })
@@ -39,6 +42,7 @@ export class FnsController {
   }
 
   @Get('status/:requestId')
+  @Public()
   @ApiOperation({ summary: 'Get receipt verification status' })
   @ApiResponse({ status: 200, description: 'Request status', type: ReceiptStatusDto })
   @ApiResponse({ status: 404, description: 'Request not found' })
