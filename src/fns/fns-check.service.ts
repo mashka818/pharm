@@ -47,7 +47,7 @@ export class FnsCheckService {
                   <tns:Sum>${qrData.sum}</tns:Sum>
                   <tns:Date>${qrData.date}</tns:Date>
                   <tns:Fn>${qrData.fn}</tns:Fn>
-                  <tns:TypeOperation>1</tns:TypeOperation>
+                  <tns:TypeOperation>${qrData.typeOperation || 1}</tns:TypeOperation>
                   <tns:FiscalDocumentId>${qrData.fd}</tns:FiscalDocumentId>
                   <tns:FiscalSign>${qrData.fp}</tns:FiscalSign>
                   <tns:RawData>true</tns:RawData>

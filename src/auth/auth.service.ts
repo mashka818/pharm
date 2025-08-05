@@ -6,15 +6,18 @@ import { JwtService } from '@nestjs/jwt';
 import { TAllUsers } from './types/all-users.type';
 import { UpdateCompanyDto } from 'src/companies/dto/update-company.dto';
 import { CompaniesService } from 'src/companies/companies.service';
+import { CustomersService } from 'src/customers/customers.service';
 import { LoginCompanyDto } from 'src/companies/dto/login-company.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { AdminDto } from 'src/admins/dto/admin.dto';
+import { CustomerDto } from 'src/customers/dto/customer.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly adminsService: AdminsService,
     private readonly companiesService: CompaniesService,
+    private readonly customersService: CustomersService,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -47,6 +50,15 @@ export class AuthService {
     return null;
   }
 
+  async validateCustomer(email: string, password: string, promotionId: string): Promise<CustomerDto> {
+    const customer = await this.customersService.getCustomerByEmailAndPromotionId(email, promotionId);
+    if (customer) {
+      const isMatch = await bcrypt.compare(password, customer.password);
+      if (isMatch) return customer;
+    }
+    return null;
+  }
+
   async loginCompany(loginCompanyDto: LoginCompanyDto): Promise<LoginResponseDto> {
     const company = await this.validateCompany(loginCompanyDto.username, loginCompanyDto.password);
     if (company) {
@@ -62,6 +74,24 @@ export class AuthService {
     const admin = await this.validateAdmin(loginAdminDto.username, loginAdminDto.password);
     if (admin) {
       const payload = { id: admin.id, username: admin.username, role: admin.role };
+
+      return this.getTokensByPayload(payload);
+    } else {
+      throw new UnauthorizedException();
+    }
+  }
+
+  async loginCustomer(email: string, password: string, promotionId: string): Promise<LoginResponseDto> {
+    const customer = await this.validateCustomer(email, password, promotionId);
+    if (customer) {
+      const payload = { 
+        id: customer.id, 
+        email: customer.email, 
+        role: customer.role,
+        promotionId: customer.promotionId,
+        name: customer.name,
+        surname: customer.surname
+      };
 
       return this.getTokensByPayload(payload);
     } else {

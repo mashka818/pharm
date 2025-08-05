@@ -8,6 +8,7 @@ import { LoginCompanyDto } from 'src/companies/dto/login-company.dto';
 import { CreateCustomerDto } from 'src/customers/dto/create-customer.dto';
 import { AuthCustomerService } from './auth-customer.service';
 import { LoginCustomerDto } from 'src/customers/dto/login-customer.dto';
+import { LoginCustomerDto as AuthLoginCustomerDto } from './dto/login-customer.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -54,5 +55,16 @@ export class AuthController {
   @Post('login/customer')
   loginCustomer(@Body() loginCustomerDto: LoginCustomerDto) {
     return this.authCustomerService.loginCustomer(loginCustomerDto);
+  }
+
+  @ApiResponse({ type: LoginResponseDto })
+  @ApiBody({ type: AuthLoginCustomerDto })
+  @Post('login/customer-v2')
+  loginCustomerV2(@Body() loginCustomerDto: AuthLoginCustomerDto) {
+    return this.authService.loginCustomer(
+      loginCustomerDto.email, 
+      loginCustomerDto.password, 
+      loginCustomerDto.promotionId
+    );
   }
 }

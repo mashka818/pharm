@@ -51,11 +51,11 @@ export class FnsAuthService {
   }
 
   private async makeAuthRequest(): Promise<string> {
-    const masterToken = process.env.FTX_TOKEN;
+    const masterToken = process.env.FNS_MASTER_TOKEN || process.env.FTX_TOKEN;
     const authServiceUrl = process.env.FNS_AUTH_SERVICE_URL || 'https://openapi.nalog.ru:8090/open-api/AuthService/0.1';
 
     if (!masterToken) {
-      throw new Error('FTX_TOKEN not configured');
+      throw new Error('FNS_MASTER_TOKEN not configured');
     }
 
     const soapRequest = `

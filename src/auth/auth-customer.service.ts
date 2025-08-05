@@ -92,7 +92,14 @@ export class AuthCustomerService {
       throw new UnauthorizedException();
     }
 
-    const payload = { id: customer.id, username: customer.email, role: customer.role };
+    const payload = { 
+      id: customer.id, 
+      email: customer.email, 
+      role: customer.role,
+      promotionId: customer.promotionId,
+      name: customer.name,
+      surname: customer.surname
+    };
 
     return this.authService.getTokensByPayload(payload);
   }

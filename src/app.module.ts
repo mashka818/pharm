@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { PromotionsModule } from './promotions/promotions.module';
 import { CompaniesModule } from './companies/companies.module';
@@ -20,6 +20,7 @@ import { ReceiptsModule } from './receipts/receipts.module';
 import { WithdrawalVariantsModule } from './withdrawal-variants/withdrawal-variants.module';
 import { SearchModule } from './search/search.module';
 import { FnsModule } from './fns/fns.module';
+import { TenantMiddleware } from './auth/middleware/tenant.middleware';
 
 @Module({
   imports: [
@@ -45,6 +46,12 @@ import { FnsModule } from './fns/fns.module';
     SearchModule,
     FnsModule,
   ],
-  providers: [PrismaService],
+  providers: [PrismaService, TenantMiddleware],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TenantMiddleware)
+      .forRoutes('receipt/scan-qr'); // Применяем middleware только к QR scan endpoint
+  }
+}

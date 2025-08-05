@@ -24,20 +24,26 @@ enum AdminRole {
 }
 
 model Promotion {
-  promotionId String     @unique
+  promotionId String       @unique
   name        String
   logo        String
   banner      String?
   favicon     String
   color       String
   description String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  domain      String       @unique
+  inn         String?
+  ogrn        String?
+  appId       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   customers   Customer[]
   companies   Company[]
   brands      Brand[]
   products    Product[]
   offers      Offer[]
+  fnsRequests FnsRequest[]
+  receipts    Receipt[]
 
   @@map("promotions")
 }
@@ -182,7 +188,9 @@ model Customer {
   promotion             Promotion           @relation(fields: [promotionId], references: [promotionId])
   role                  CustomerRole
   fnsRequests           FnsRequest[]
+  receipts              Receipt[]
 
+  @@unique([email, promotionId])
   @@map("customers")
 }
 
@@ -239,6 +247,10 @@ model Receipt {
   products            ReceiptProduct[]
   status              ReceiptStaus
   address             String
+  promotionId         String
+  promotion           Promotion             @relation(fields: [promotionId], references: [promotionId])
+  customerId          Int?
+  customer            Customer?             @relation(fields: [customerId], references: [id])
   fnsRequests         FnsRequest[]
 
   @@map("receipts")
@@ -271,6 +283,8 @@ model FnsRequest {
   customer        Customer?     @relation(fields: [customerId], references: [id])
   receiptId       Int?
   receipt         Receipt?      @relation(fields: [receiptId], references: [id])
+  promotionId     String
+  promotion       Promotion     @relation(fields: [promotionId], references: [promotionId])
   
   qrData          Json
   

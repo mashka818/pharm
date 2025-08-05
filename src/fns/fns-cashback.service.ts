@@ -7,11 +7,11 @@ export class FnsCashbackService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async calculateCashback(receiptData: any, customerId?: number): Promise<number> {
-    this.logger.log(`Calculating cashback for receipt: ${JSON.stringify(receiptData)}`);
+  async calculateCashback(receiptData: any, customerId?: number, promotionId?: string): Promise<number> {
+    this.logger.log(`Calculating cashback for receipt: ${JSON.stringify(receiptData)}, promotion: ${promotionId}`);
 
     try {
-      const activeOffers = await this.getActiveOffers();
+      const activeOffers = await this.getActiveOffers(promotionId);
       
       const receiptItems = this.parseReceiptItems(receiptData);
       
@@ -27,18 +27,24 @@ export class FnsCashbackService {
     }
   }
 
-  private async getActiveOffers(): Promise<any[]> {
+  private async getActiveOffers(promotionId?: string): Promise<any[]> {
     const now = new Date();
     
-    return await this.prisma.offer.findMany({
-      where: {
-        date_from: {
-          lte: now,
-        },
-        date_to: {
-          gte: now,
-        },
+    const whereClause: any = {
+      date_from: {
+        lte: now,
       },
+      date_to: {
+        gte: now,
+      },
+    };
+
+    if (promotionId) {
+      whereClause.promotionId = promotionId;
+    }
+    
+    return await this.prisma.offer.findMany({
+      where: whereClause,
       include: {
         products: {
           include: {
@@ -154,5 +160,72 @@ export class FnsCashbackService {
     }
 
     return true;
+  }
+
+  async checkCashbackLimitsForPromotion(customerId: number, receiptData: any, promotionId: string): Promise<boolean> {
+    // Проверяем, получал ли пользователь кешбек за этот чек в данной сети
+    const existingRequest = await this.prisma.fnsRequest.findFirst({
+      where: {
+        customerId,
+        promotionId,
+        qrData: {
+          path: ['fn'],
+          equals: receiptData.fn,
+        },
+        AND: [
+          {
+            qrData: {
+              path: ['fd'],
+              equals: receiptData.fd,
+            },
+          },
+          {
+            qrData: {
+              path: ['fp'],
+              equals: receiptData.fp,
+            },
+          },
+        ],
+        cashbackAwarded: true,
+      },
+    });
+
+    if (existingRequest) {
+      this.logger.warn(`Customer ${customerId} already received cashback for this receipt in promotion ${promotionId}`);
+      return false;
+    }
+
+    // Проверяем дополнительные лимиты (например, максимум чеков в день)
+    const dailyLimit = await this.checkDailyCashbackLimit(customerId, promotionId);
+    if (!dailyLimit) {
+      this.logger.warn(`Customer ${customerId} exceeded daily cashback limit in promotion ${promotionId}`);
+      return false;
+    }
+
+    return true;
+  }
+
+  private async checkDailyCashbackLimit(customerId: number, promotionId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const todaysRequests = await this.prisma.fnsRequest.count({
+      where: {
+        customerId,
+        promotionId,
+        cashbackAwarded: true,
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+    
+    // Максимум 10 чеков с кешбеком в день на сеть
+    const DAILY_LIMIT = 10;
+    return todaysRequests < DAILY_LIMIT;
   }
 } 

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { FnsAuthService } from './fns-auth.service';
 import { FnsCheckService } from './fns-check.service';
@@ -7,6 +7,7 @@ import { FnsCashbackService } from './fns-cashback.service';
 import { PrismaService } from '../prisma.service';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
+import { ScanQrCodeDto } from './dto/scan-qr-code.dto';
 
 @Injectable()
 export class FnsService {
@@ -19,6 +20,69 @@ export class FnsService {
     private readonly fnsCashbackService: FnsCashbackService,
     private readonly prisma: PrismaService,
   ) {}
+
+  async processScanQrCode(qrData: ScanQrCodeDto, customerId: number, promotionId: string, host: string) {
+    this.logger.log(`Processing QR scan for customer ${customerId}, promotion ${promotionId}, host: ${host}`);
+    
+    try {
+      // Проверяем существует ли промоакция
+      const promotion = await this.prisma.promotion.findUnique({
+        where: { promotionId },
+      });
+
+      if (!promotion) {
+        throw new BadRequestException('Promotion not found');
+      }
+
+      // Проверяем домен
+      const expectedDomain = promotion.domain;
+      if (!host.includes(expectedDomain)) {
+        throw new BadRequestException('Invalid domain for this promotion');
+      }
+
+      // Проверяем лимиты кешбека для данного пользователя и чека
+      const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimitsForPromotion(
+        customerId, 
+        qrData, 
+        promotionId
+      );
+      
+      if (!canReceiveCashback) {
+        return {
+          requestId: null,
+          status: 'rejected',
+          message: 'Cashback already received for this receipt in this network',
+        };
+      }
+
+      // Проверяем дневной лимит запросов для промоакции
+      const dailyLimit = await this.checkDailyLimit(promotionId);
+      if (!dailyLimit.allowed) {
+        return {
+          requestId: null,
+          status: 'rejected',
+          message: 'Daily request limit exceeded for this network',
+        };
+      }
+
+      // Добавляем в очередь с привязкой к промоакции
+      const requestId = await this.fnsQueueService.addToQueueWithPromotion(
+        qrData, 
+        customerId, 
+        promotionId
+      );
+      
+      return {
+        requestId,
+        status: 'pending',
+        message: 'Receipt verification started',
+        network: promotion.name,
+      };
+    } catch (error) {
+      this.logger.error('Error processing QR scan:', error);
+      throw error;
+    }
+  }
 
   async verifyReceipt(qrData: VerifyReceiptDto, customerId?: number) {
     this.logger.log(`Starting receipt verification for QR data: ${JSON.stringify(qrData)}`);
@@ -158,11 +222,26 @@ export class FnsService {
   private async handleCheckResult(requestId: string, result: any, customerId?: number) {
     const status = result.status;
     
+    // Получаем промоакцию из запроса
+    const fnsRequest = await this.prisma.fnsRequest.findUnique({
+      where: { id: requestId },
+      select: { promotionId: true },
+    });
+    
     if (status === 'success') {
-      const cashbackAmount = await this.fnsCashbackService.calculateCashback(result.receiptData, customerId);
+      const cashbackAmount = await this.fnsCashbackService.calculateCashback(
+        result.receiptData, 
+        customerId, 
+        fnsRequest?.promotionId
+      );
       
       if (customerId && cashbackAmount > 0) {
         await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
+        
+        // Создаем чек в БД для данной промоакции
+        if (fnsRequest?.promotionId) {
+          await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount);
+        }
       }
       
       await this.fnsQueueService.updateRequestStatus(requestId, 'success', {
@@ -226,5 +305,53 @@ export class FnsService {
         qrData: true,
       },
     });
+  }
+
+  private async checkDailyLimit(promotionId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const currentCount = await this.prisma.fnsRequest.count({
+      where: {
+        promotionId,
+        createdAt: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+    
+    const limit = 1000; // Лимит из документации ФНС
+    
+    return {
+      allowed: currentCount < limit,
+      current: currentCount,
+      limit,
+    };
+  }
+
+  private async createReceiptRecord(receiptData: any, customerId: number, promotionId: string, cashback: number): Promise<void> {
+    try {
+      const receipt = await this.prisma.receipt.create({
+        data: {
+          date: new Date(receiptData.dateTime || receiptData.date),
+          number: parseInt(receiptData.fiscalDocumentNumber || receiptData.fd),
+          price: parseInt(receiptData.totalSum || receiptData.sum),
+          cashback,
+          status: 'success',
+          address: receiptData.retailPlace || 'Неизвестно',
+          promotionId,
+          customerId,
+        },
+      });
+
+      this.logger.log(`Created receipt record with ID: ${receipt.id}`);
+    } catch (error) {
+      this.logger.error('Error creating receipt record:', error);
+      // Не прерываем процесс, если не удалось создать запись чека
+    }
   }
 } 

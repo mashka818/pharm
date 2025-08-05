@@ -55,4 +55,39 @@ export class PromotionDto {
   })
   @IsString()
   color: string;
+
+  @ApiProperty({
+    description: 'Domain for multi-tenancy',
+    example: 'x-farm.checkpoint.rf',
+    required: true,
+  })
+  @IsString()
+  domain: string;
+
+  @ApiProperty({
+    description: 'INN of the pharmacy network',
+    example: '5032364514',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  inn?: string;
+
+  @ApiProperty({
+    description: 'OGRN of the pharmacy network',
+    example: '1234567890123',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  ogrn?: string;
+
+  @ApiProperty({
+    description: 'FNS App ID',
+    example: '2dbfa911-1931-48e7-802f-640dc64429b0',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  appId?: string;
 }

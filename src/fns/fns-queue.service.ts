@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
+import { ScanQrCodeDto } from './dto/scan-qr-code.dto';
 
 @Injectable()
 export class FnsQueueService {
@@ -8,8 +9,8 @@ export class FnsQueueService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async addToQueue(qrData: VerifyReceiptDto, customerId?: number): Promise<string> {
-    this.logger.log(`Adding request to queue: ${JSON.stringify(qrData)}`);
+  async addToQueueWithPromotion(qrData: ScanQrCodeDto, customerId: number, promotionId: string): Promise<string> {
+    this.logger.log(`Adding request to queue with promotion: ${JSON.stringify(qrData)}`);
 
     try {
       await this.checkDailyLimit();
@@ -20,6 +21,34 @@ export class FnsQueueService {
           status: 'pending',
           attempts: 0,
           customerId,
+          promotionId,
+        },
+      });
+
+      this.logger.log(`Request added to queue with ID: ${request.id}`);
+      return request.id;
+    } catch (error) {
+      this.logger.error('Error adding request to queue:', error);
+      throw error;
+    }
+  }
+
+  async addToQueue(qrData: VerifyReceiptDto, customerId?: number): Promise<string> {
+    this.logger.log(`Adding request to queue: ${JSON.stringify(qrData)}`);
+
+    try {
+      await this.checkDailyLimit();
+
+      // Для backward compatibility, если promotionId не указан, используем временное значение
+      const promotionId = 'default-promotion';
+      
+      const request = await this.prisma.fnsRequest.create({
+        data: {
+          qrData: qrData as any,
+          status: 'pending',
+          attempts: 0,
+          customerId,
+          promotionId,
         },
       });
 
