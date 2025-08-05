@@ -6,10 +6,17 @@ import axios from 'axios';
 export class FnsAuthService {
   private readonly logger = new Logger(FnsAuthService.name);
   private cachedToken: { token: string; expiresAt: Date } | null = null;
+  private readonly isDevelopment = process.env.NODE_ENV !== 'production';
 
   constructor(private readonly prisma: PrismaService) {}
 
   async getValidToken(): Promise<string> {
+    // В режиме разработки с IP блокировкой используем mock токен
+    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
+      this.logger.warn('Using development mode with mock FNS token due to IP restrictions');
+      return this.generateMockToken();
+    }
+
     if (this.isTokenValid()) {
       return this.cachedToken.token;
     }
@@ -19,6 +26,16 @@ export class FnsAuthService {
 
   async refreshToken(): Promise<string> {
     this.logger.log('Refreshing FNS token');
+
+    // В режиме разработки с IP блокировкой используем mock
+    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
+      this.logger.warn('Using mock token in development mode');
+      const mockToken = this.generateMockToken();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      
+      this.cachedToken = { token: mockToken, expiresAt };
+      return mockToken;
+    }
 
     try {
       const token = await this.makeAuthRequest();
@@ -35,6 +52,12 @@ export class FnsAuthService {
       return token;
     } catch (error) {
       this.logger.error('Error refreshing FNS token:', error);
+      
+      // Если это IP блокировка и мы в разработке, предлагаем включить dev режим
+      if (error.message.includes('IP address not whitelisted') && this.isDevelopment) {
+        this.logger.warn('Consider setting FNS_DEV_MODE=true in .env for development with mock responses');
+      }
+      
       throw new Error('Failed to refresh FNS token');
     }
   }
@@ -116,6 +139,13 @@ export class FnsAuthService {
     }
 
     throw new Error('Failed to parse token from FNS response');
+  }
+
+  private generateMockToken(): string {
+    // Генерируем mock токен для разработки
+    const mockToken = `dev_mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.logger.debug(`Generated mock token: ${mockToken.substring(0, 20)}...`);
+    return mockToken;
   }
 
   async loadTokenFromDb(): Promise<void> {

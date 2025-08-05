@@ -4,9 +4,15 @@ import axios from 'axios';
 @Injectable()
 export class FnsCheckService {
   private readonly logger = new Logger(FnsCheckService.name);
+  private readonly isDevelopment = process.env.NODE_ENV !== 'production';
 
   async sendCheckRequest(qrData: any, token: string): Promise<string> {
     this.logger.log(`Sending check request for QR data: ${JSON.stringify(qrData)}`);
+
+    // Mock режим для разработки
+    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
+      return this.generateMockMessageId(qrData);
+    }
 
     try {
       const messageId = await this.makeSendMessageRequest(qrData, token);
@@ -15,12 +21,23 @@ export class FnsCheckService {
       return messageId;
     } catch (error) {
       this.logger.error('Error sending check request:', error);
+      
+      // Если IP блокировка в разработке, предлагаем dev режим
+      if (error.message.includes('IP address not whitelisted') && this.isDevelopment) {
+        this.logger.warn('Consider setting FNS_DEV_MODE=true for development with mock responses');
+      }
+      
       throw new Error('Failed to send check request to FNS');
     }
   }
 
   async getCheckResult(messageId: string, token: string): Promise<any> {
     this.logger.log(`Getting check result for message ID: ${messageId}`);
+
+    // Mock режим для разработки
+    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
+      return this.generateMockResult(messageId);
+    }
 
     try {
       const result = await this.makeGetMessageRequest(messageId, token);
@@ -218,6 +235,14 @@ export class FnsCheckService {
   }
 
   async waitForResult(messageId: string, token: string, maxAttempts: number = 10): Promise<any> {
+    // В mock режиме сразу возвращаем результат
+    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
+      this.logger.warn(`Mock mode: returning immediate result for ${messageId}`);
+      // Небольшая задержка для имитации обработки
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return this.generateMockResult(messageId);
+    }
+
     let attempts = 0;
     
     while (attempts < maxAttempts) {
@@ -259,5 +284,59 @@ export class FnsCheckService {
     }
     
     throw new Error('Timeout waiting for FNS result');
+  }
+
+  private generateMockMessageId(qrData: any): string {
+    const mockId = `dev-mock-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+    this.logger.warn(`Generated mock message ID: ${mockId} for QR: ${qrData.fn}`);
+    return mockId;
+  }
+
+  private generateMockResult(messageId: string): any {
+    // Симулируем разные типы ответов для тестирования
+    const scenarios = [
+      // Успешный валидный чек
+      {
+        processingStatus: 'COMPLETED',
+        status: 'success',
+        isValid: true,
+        isReturn: false,
+        isFake: false,
+        receiptData: {
+          dateTime: '2025-01-05T14:30:00',
+          fiscalDocumentNumber: '77133',
+          totalSum: 24000,
+          retailPlace: 'Тестовая аптека',
+          items: [
+            { name: 'Тестовый препарат', price: 24000, quantity: 1 }
+          ]
+        }
+      },
+      // Невалидный чек
+      {
+        processingStatus: 'COMPLETED',
+        status: 'rejected',
+        isValid: false,
+        isReturn: false,
+        isFake: true,
+        receiptData: null
+      },
+      // Чек возврата
+      {
+        processingStatus: 'COMPLETED',
+        status: 'rejected',
+        isValid: false,
+        isReturn: true,
+        isFake: false,
+        receiptData: null
+      }
+    ];
+
+    // Выбираем сценарий на основе messageId (для предсказуемости)
+    const scenarioIndex = Math.abs(messageId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % scenarios.length;
+    const result = scenarios[scenarioIndex];
+    
+    this.logger.warn(`Generated mock result for ${messageId}: ${result.status}`);
+    return result;
   }
 } 
