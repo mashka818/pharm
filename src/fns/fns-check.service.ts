@@ -65,7 +65,6 @@ export class FnsCheckService {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:SendMessageRequest',
           'FNS-OpenApi-Token': token,
-          'FNS-OpenApi-UserToken': appId,
         },
         timeout: 30000,
       });
@@ -104,7 +103,6 @@ export class FnsCheckService {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:GetMessageRequest',
           'FNS-OpenApi-Token': token,
-          'FNS-OpenApi-UserToken': appId,
         },
         timeout: 30000,
       });

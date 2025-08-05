@@ -58,6 +58,9 @@ export class FnsAuthService {
       throw new Error('FTX_TOKEN not configured');
     }
 
+    this.logger.log(`Using master token: ${masterToken.substring(0, 10)}...`);
+    this.logger.log(`Auth service URL: ${authServiceUrl}`);
+
     const soapRequest = `
       <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0">
         <soapenv:Header/>

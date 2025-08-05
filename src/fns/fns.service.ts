@@ -7,6 +7,7 @@ import { FnsCashbackService } from './fns-cashback.service';
 import { PrismaService } from '../prisma.service';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
+import { QrParseResultDto } from './dto/parse-qr.dto';
 
 @Injectable()
 export class FnsService {
@@ -226,5 +227,84 @@ export class FnsService {
         qrData: true,
       },
     });
+  }
+
+  async parseQrCode(qrData: string): Promise<QrParseResultDto> {
+    try {
+      this.logger.log(`Parsing QR code: ${qrData}`);
+
+      // Удаляем возможные префиксы URL
+      let cleanData = qrData.trim();
+      if (cleanData.includes('?')) {
+        cleanData = cleanData.split('?')[1];
+      }
+
+      // Парсим параметры
+      const params = new URLSearchParams(cleanData);
+      
+      // Извлекаем необходимые параметры
+      const dateParam = params.get('t');
+      const sumParam = params.get('s');
+      const fnParam = params.get('fn');
+      const fdParam = params.get('i');
+      const fpParam = params.get('fp');
+      const typeOperationParam = params.get('n') || '1';
+
+      // Проверяем обязательные параметры
+      if (!dateParam || !sumParam || !fnParam || !fdParam || !fpParam) {
+        return {
+          success: false,
+          error: 'Missing required QR code parameters (t, s, fn, i, fp)'
+        };
+      }
+
+      // Форматируем дату
+      let formattedDate: string;
+      try {
+        // Ожидаем формат: 20240101T1200 или похожий
+        const dateStr = dateParam.replace(/[^\d]/g, '');
+        if (dateStr.length >= 12) {
+          const year = dateStr.substring(0, 4);
+          const month = dateStr.substring(4, 6);
+          const day = dateStr.substring(6, 8);
+          const hour = dateStr.substring(8, 10);
+          const minute = dateStr.substring(10, 12);
+          formattedDate = `${year}-${month}-${day}T${hour}:${minute}:00`;
+        } else {
+          throw new Error('Invalid date format');
+        }
+      } catch (e) {
+        return {
+          success: false,
+          error: 'Invalid date format in QR code'
+        };
+      }
+
+      // Форматируем сумму (убираем точки, оставляем копейки)
+      const formattedSum = parseFloat(sumParam).toFixed(0);
+
+      const result = {
+        fn: fnParam,
+        fd: fdParam,
+        fp: fpParam,
+        sum: formattedSum,
+        date: formattedDate,
+        typeOperation: typeOperationParam,
+      };
+
+      this.logger.log(`Successfully parsed QR code: ${JSON.stringify(result)}`);
+
+      return {
+        success: true,
+        data: result
+      };
+
+    } catch (error) {
+      this.logger.error('Error parsing QR code:', error);
+      return {
+        success: false,
+        error: 'Failed to parse QR code data'
+      };
+    }
   }
 } 
