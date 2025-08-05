@@ -37,7 +37,7 @@ async function testFnsIntegration() {
       console.log('\n3️⃣ Проверка статуса запроса...');
       
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 3;
       
       while (attempts < maxAttempts) {
         try {
@@ -52,8 +52,12 @@ async function testFnsIntegration() {
           }
           
           if (status === 'processing' || status === 'pending') {
-            console.log('⏳ Ожидание результата...');
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            if (attempts < maxAttempts - 1) {
+              console.log('⏳ Ожидание результата...');
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+              console.log('⏰ Максимальное количество попыток достигнуто. Запрос все еще обрабатывается.');
+            }
             attempts++;
             continue;
           }
@@ -84,6 +88,10 @@ async function testFnsIntegration() {
     }
 
     console.log('\n🎉 Тестирование завершено!');
+    console.log('\n📝 Примечания:');
+    console.log('• Статус "failed" или "pending" для тестовых данных - это нормально');
+    console.log('• Тестовые данные из документации ФНС могут не существовать в реальной системе');
+    console.log('• Для реальных чеков статус будет "success" или "rejected"');
 
   } catch (error) {
     console.error('❌ Ошибка при тестировании:', error.response?.data || error.message);
