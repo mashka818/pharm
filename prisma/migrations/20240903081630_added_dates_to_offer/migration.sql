@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "offers" ALTER COLUMN "date_form" DROP DEFAULT,
+ALTER COLUMN "date_to" DROP DEFAULT;

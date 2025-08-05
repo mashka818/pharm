@@ -1,0 +1,99 @@
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import { CreateCustomerDto } from 'src/customers/dto/create-customer.dto';
+import { MailerService } from 'src/mailer/mailer.service';
+import { v4 as uuidv4 } from 'uuid';
+import { PromotionsService } from 'src/promotions/promotions.service';
+import { CreateUnconfirmedCustomerDto } from 'src/customers/dto/unconfirmed-customer.dto';
+import { UnconfirmedCustomersService } from 'src/customers/unconfirmed-customers.service';
+import { CustomersService } from 'src/customers/customers.service';
+import { LoginCustomerDto } from 'src/customers/dto/login-customer.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
+import { AuthService } from './auth.service';
+
+@Injectable()
+export class AuthCustomerService {
+  constructor(
+    private readonly mailerService: MailerService,
+    private readonly promotionsService: PromotionsService,
+    private readonly unconfirmedCustomersService: UnconfirmedCustomersService,
+    private readonly customersService: CustomersService,
+    private readonly authService: AuthService,
+  ) {}
+
+  async regCustomer(createCustomerDto: CreateCustomerDto) {
+    const hashedPassword = await bcrypt.hash(createCustomerDto.password, +process.env.SALT);
+
+    const promotion = await this.promotionsService.findOneByPromotionId(
+      createCustomerDto.promotionId,
+    );
+
+    if (!promotion) {
+      throw new NotFoundException(
+        `Promotion with promotionId:${createCustomerDto.promotionId} not found`,
+      );
+    }
+
+    const confirmationToken = uuidv4();
+
+    const customer: CreateUnconfirmedCustomerDto = {
+      ...createCustomerDto,
+      confirmationToken,
+      password: hashedPassword,
+    };
+
+    const createdCustomer = await this.unconfirmedCustomersService.createUnconfirmed(customer);
+
+    const confirmationLink = `${process.env.FRONTEND_URL}/auth/confirm/${createdCustomer.confirmationToken}`;
+
+    const res = await this.mailerService.sendMail({
+      subject: 'Подтверждение регистрации',
+      html: `Для подтверждения почты перейдите по следующей ссылке: <a href="${confirmationLink}">Подтвердить почту</a>`,
+      to: createCustomerDto.email,
+    });
+
+    if (res.isError) {
+      throw new InternalServerErrorException('Failed to send confirmation email.');
+    }
+
+    return 'Registration request has been created';
+  }
+
+  async confirmCustomer(confirmationToken: string) {
+    const unconfirmed =
+      await this.unconfirmedCustomersService.getUnconfirmedByConfirmationToken(confirmationToken);
+
+    if (!unconfirmed) {
+      throw new NotFoundException('Customer not found');
+    }
+    const { confirmationToken: token, id, ...customer } = unconfirmed;
+
+    await this.unconfirmedCustomersService.remove(id);
+
+    await this.customersService.create(customer);
+  }
+
+  async loginCustomer(loginCustomerDto: LoginCustomerDto): Promise<LoginResponseDto> {
+    const customer = await this.customersService.getCustomerByEmailAndPromotionId(
+      loginCustomerDto.email,
+      loginCustomerDto.promotionId,
+    );
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+    const isMatch = await bcrypt.compare(loginCustomerDto.password, customer.password);
+
+    if (!isMatch) {
+      throw new UnauthorizedException();
+    }
+
+    const payload = { id: customer.id, username: customer.email, role: customer.role };
+
+    return this.authService.getTokensByPayload(payload);
+  }
+}

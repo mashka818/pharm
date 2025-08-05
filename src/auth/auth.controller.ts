@@ -1,0 +1,58 @@
+import { Body, Controller, Param, Post } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { LoginAdminDto } from 'src/admins/dto/login-admin.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
+import { refreshDto } from './dto/refresh.dto';
+import { LoginCompanyDto } from 'src/companies/dto/login-company.dto';
+import { CreateCustomerDto } from 'src/customers/dto/create-customer.dto';
+import { AuthCustomerService } from './auth-customer.service';
+import { LoginCustomerDto } from 'src/customers/dto/login-customer.dto';
+
+@ApiTags('Auth')
+@Controller('auth')
+export class AuthController {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly authCustomerService: AuthCustomerService,
+  ) {}
+
+  @ApiResponse({ type: LoginResponseDto })
+  @ApiBody({ type: LoginAdminDto })
+  @Post('login/admin')
+  loginAdmin(@Body() loginAdminDto: LoginAdminDto) {
+    return this.authService.loginAdmin(loginAdminDto);
+  }
+
+  @ApiResponse({ type: LoginResponseDto })
+  @ApiBody({ type: LoginCompanyDto })
+  @Post('login/company')
+  loginCompany(@Body() loginCompanyDto: LoginCompanyDto) {
+    return this.authService.loginCompany(loginCompanyDto);
+  }
+
+  @ApiResponse({ type: LoginResponseDto })
+  @ApiBody({ type: refreshDto })
+  @Post('refresh/')
+  refresh(@Body() refreshBody: { refresh: string }) {
+    return this.authService.refresh(refreshBody.refresh);
+  }
+
+  @ApiBody({ type: CreateCustomerDto })
+  @Post('reg')
+  regCustomer(@Body() CreateCustomerDto: CreateCustomerDto) {
+    return this.authCustomerService.regCustomer(CreateCustomerDto);
+  }
+
+  @Post('confirm/:confirmationToken')
+  confirm(@Param('confirmationToken') confirmationToken: string) {
+    return this.authCustomerService.confirmCustomer(confirmationToken);
+  }
+
+  @ApiResponse({ type: LoginResponseDto })
+  @ApiBody({ type: LoginCustomerDto })
+  @Post('login/customer')
+  loginCustomer(@Body() loginCustomerDto: LoginCustomerDto) {
+    return this.authCustomerService.loginCustomer(loginCustomerDto);
+  }
+}
