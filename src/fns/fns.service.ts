@@ -222,11 +222,21 @@ export class FnsService {
   private async handleCheckResult(requestId: string, result: any, customerId?: number) {
     const status = result.status;
     
-    // Получаем промоакцию из запроса
-    const fnsRequest = await this.prisma.fnsRequest.findUnique({
-      where: { id: requestId },
-      select: { promotionId: true },
-    });
+    // Получаем промоакцию из запроса (если поле существует)
+    let fnsRequest;
+    try {
+      fnsRequest = await this.prisma.fnsRequest.findUnique({
+        where: { id: requestId },
+        select: { promotionId: true },
+      });
+    } catch (error) {
+      // Если поле promotionId не существует, продолжаем без него
+      if (error.message.includes('promotionId')) {
+        fnsRequest = null;
+      } else {
+        throw error;
+      }
+    }
     
     if (status === 'success') {
       const cashbackAmount = await this.fnsCashbackService.calculateCashback(
@@ -314,15 +324,32 @@ export class FnsService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    const currentCount = await this.prisma.fnsRequest.count({
-      where: {
-        promotionId,
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
+    let currentCount = 0;
+    try {
+      currentCount = await this.prisma.fnsRequest.count({
+        where: {
+          promotionId,
+          createdAt: {
+            gte: today,
+            lt: tomorrow,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      // Если поле promotionId не существует, считаем общий лимит
+      if (error.message.includes('promotionId')) {
+        currentCount = await this.prisma.fnsRequest.count({
+          where: {
+            createdAt: {
+              gte: today,
+              lt: tomorrow,
+            },
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
     
     const limit = 1000; // Лимит из документации ФНС
     

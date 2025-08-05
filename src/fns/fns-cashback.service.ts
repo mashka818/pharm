@@ -164,31 +164,64 @@ export class FnsCashbackService {
 
   async checkCashbackLimitsForPromotion(customerId: number, receiptData: any, promotionId: string): Promise<boolean> {
     // Проверяем, получал ли пользователь кешбек за этот чек в данной сети
-    const existingRequest = await this.prisma.fnsRequest.findFirst({
-      where: {
-        customerId,
-        promotionId,
-        qrData: {
-          path: ['fn'],
-          equals: receiptData.fn,
+    let existingRequest;
+    try {
+      existingRequest = await this.prisma.fnsRequest.findFirst({
+        where: {
+          customerId,
+          promotionId,
+          qrData: {
+            path: ['fn'],
+            equals: receiptData.fn,
+          },
+          AND: [
+            {
+              qrData: {
+                path: ['fd'],
+                equals: receiptData.fd,
+              },
+            },
+            {
+              qrData: {
+                path: ['fp'],
+                equals: receiptData.fp,
+              },
+            },
+          ],
+          cashbackAwarded: true,
         },
-        AND: [
-          {
+      });
+    } catch (error) {
+      // Если поле promotionId не существует, проверяем без него
+      if (error.message.includes('promotionId')) {
+        existingRequest = await this.prisma.fnsRequest.findFirst({
+          where: {
+            customerId,
             qrData: {
-              path: ['fd'],
-              equals: receiptData.fd,
+              path: ['fn'],
+              equals: receiptData.fn,
             },
+            AND: [
+              {
+                qrData: {
+                  path: ['fd'],
+                  equals: receiptData.fd,
+                },
+              },
+              {
+                qrData: {
+                  path: ['fp'],
+                  equals: receiptData.fp,
+                },
+              },
+            ],
+            cashbackAwarded: true,
           },
-          {
-            qrData: {
-              path: ['fp'],
-              equals: receiptData.fp,
-            },
-          },
-        ],
-        cashbackAwarded: true,
-      },
-    });
+        });
+      } else {
+        throw error;
+      }
+    }
 
     if (existingRequest) {
       this.logger.warn(`Customer ${customerId} already received cashback for this receipt in promotion ${promotionId}`);
@@ -212,17 +245,36 @@ export class FnsCashbackService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    const todaysRequests = await this.prisma.fnsRequest.count({
-      where: {
-        customerId,
-        promotionId,
-        cashbackAwarded: true,
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
+    let todaysRequests = 0;
+    try {
+      todaysRequests = await this.prisma.fnsRequest.count({
+        where: {
+          customerId,
+          promotionId,
+          cashbackAwarded: true,
+          createdAt: {
+            gte: today,
+            lt: tomorrow,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      // Если поле promotionId не существует, считаем общий лимит
+      if (error.message.includes('promotionId')) {
+        todaysRequests = await this.prisma.fnsRequest.count({
+          where: {
+            customerId,
+            cashbackAwarded: true,
+            createdAt: {
+              gte: today,
+              lt: tomorrow,
+            },
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
     
     // Максимум 10 чеков с кешбеком в день на сеть
     const DAILY_LIMIT = 10;

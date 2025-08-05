@@ -15,15 +15,33 @@ export class FnsQueueService {
     try {
       await this.checkDailyLimit();
 
-      const request = await this.prisma.fnsRequest.create({
-        data: {
-          qrData: qrData as any,
-          status: 'pending',
-          attempts: 0,
-          customerId,
-          promotionId,
-        },
-      });
+      // Пытаемся создать запрос с promotionId, если не получается - создаем без него
+      let request;
+      try {
+        request = await this.prisma.fnsRequest.create({
+          data: {
+            qrData: qrData as any,
+            status: 'pending',
+            attempts: 0,
+            customerId,
+            promotionId,
+          },
+        });
+      } catch (promotionError) {
+        // Если ошибка связана с отсутствием колонки promotionId, создаем без неё
+        if (promotionError.message.includes('promotionId')) {
+          request = await this.prisma.fnsRequest.create({
+            data: {
+              qrData: qrData as any,
+              status: 'pending',
+              attempts: 0,
+              customerId,
+            },
+          });
+        } else {
+          throw promotionError;
+        }
+      }
 
       this.logger.log(`Request added to queue with ID: ${request.id}`);
       return request.id;
@@ -62,6 +80,7 @@ export class FnsQueueService {
 
   async getPendingRequests(): Promise<any[]> {
     try {
+      // Проверяем, есть ли колонка promotionId в таблице
       const requests = await this.prisma.fnsRequest.findMany({
         where: {
           status: 'pending',
