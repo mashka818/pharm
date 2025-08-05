@@ -159,7 +159,14 @@ export class FnsService {
     const status = result.status;
     
     if (status === 'success') {
-      const cashbackAmount = await this.fnsCashbackService.calculateCashback(result.receiptData, customerId);
+      // Получаем данные запроса для извлечения networkId
+      const request = await this.prisma.fnsRequest.findUnique({
+        where: { id: requestId },
+        select: { qrData: true },
+      });
+
+      const networkId = request?.qrData?.networkId;
+      const cashbackAmount = await this.fnsCashbackService.calculateCashback(result.receiptData, customerId, networkId);
       
       if (customerId && cashbackAmount > 0) {
         await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
@@ -226,5 +233,42 @@ export class FnsService {
         qrData: true,
       },
     });
+  }
+
+  async getRequestByQrData(qrData: any, customerId: number): Promise<any> {
+    try {
+      const request = await this.prisma.fnsRequest.findFirst({
+        where: {
+          customerId,
+          qrData: {
+            path: ['fn'],
+            equals: qrData.fn,
+          },
+          // Дополнительные проверки для уникальности чека
+          AND: [
+            {
+              qrData: {
+                path: ['fd'],
+                equals: qrData.fd,
+              },
+            },
+            {
+              qrData: {
+                path: ['fp'],
+                equals: qrData.fp,
+              },
+            },
+          ],
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return request;
+    } catch (error) {
+      this.logger.error('Error finding existing request:', error);
+      return null;
+    }
   }
 } 

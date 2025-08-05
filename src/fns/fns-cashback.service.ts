@@ -7,16 +7,32 @@ export class FnsCashbackService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async calculateCashback(receiptData: any, customerId?: number): Promise<number> {
+  async calculateCashback(receiptData: any, customerId?: number, networkId?: number): Promise<number> {
     this.logger.log(`Calculating cashback for receipt: ${JSON.stringify(receiptData)}`);
 
     try {
+      // Если указана сеть, используем её для расчета кешбека
+      if (networkId) {
+        const network = await this.prisma.company.findUnique({
+          where: { id: networkId },
+          include: { promotion: true },
+        });
+
+        if (network) {
+          const activeOffers = await this.getActiveOffersByPromotion(network.promotionId);
+          const receiptItems = this.parseReceiptItems(receiptData);
+          const cashbackItems = await this.matchItemsWithOffers(receiptItems, activeOffers);
+          const totalCashback = this.calculateTotalCashback(cashbackItems);
+          
+          this.logger.log(`Calculated cashback for network ${networkId}: ${totalCashback}`);
+          return totalCashback;
+        }
+      }
+
+      // Fallback к общему расчету
       const activeOffers = await this.getActiveOffers();
-      
       const receiptItems = this.parseReceiptItems(receiptData);
-      
       const cashbackItems = await this.matchItemsWithOffers(receiptItems, activeOffers);
-      
       const totalCashback = this.calculateTotalCashback(cashbackItems);
       
       this.logger.log(`Calculated cashback: ${totalCashback}`);
@@ -32,6 +48,30 @@ export class FnsCashbackService {
     
     return await this.prisma.offer.findMany({
       where: {
+        date_from: {
+          lte: now,
+        },
+        date_to: {
+          gte: now,
+        },
+      },
+      include: {
+        products: {
+          include: {
+            product: true,
+          },
+        },
+        condition: true,
+      },
+    });
+  }
+
+  private async getActiveOffersByPromotion(promotionId: string): Promise<any[]> {
+    const now = new Date();
+    
+    return await this.prisma.offer.findMany({
+      where: {
+        promotionId,
         date_from: {
           lte: now,
         },

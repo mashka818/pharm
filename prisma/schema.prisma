@@ -136,6 +136,8 @@ model Company {
   id          Int         @id @default(autoincrement())
   username    String      @unique
   password    String
+  name        String?
+  subdomain   String?     @unique
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   promotion   Promotion   @relation(fields: [promotionId], references: [promotionId])
@@ -147,6 +149,7 @@ model Company {
 
 enum CompanyRole {
   COMPANY
+  PHARMACY_NETWORK
 }
 
 model UnconfirmedCustomer {
