@@ -11,12 +11,7 @@ export class FnsAuthService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getValidToken(): Promise<string> {
-    // В режиме разработки с IP блокировкой используем mock токен
-    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
-      this.logger.warn('Using development mode with mock FNS token due to IP restrictions');
-      return this.generateMockToken();
-    }
-
+    // УБРАНО: mock/dev режим. Всегда используем реальный токен
     if (this.isTokenValid()) {
       return this.cachedToken.token;
     }
@@ -27,16 +22,7 @@ export class FnsAuthService {
   async refreshToken(): Promise<string> {
     this.logger.log('Refreshing FNS token');
 
-    // В режиме разработки с IP блокировкой используем mock
-    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
-      this.logger.warn('Using mock token in development mode');
-      const mockToken = this.generateMockToken();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-      
-      this.cachedToken = { token: mockToken, expiresAt };
-      return mockToken;
-    }
-
+    // УБРАНО: mock/dev режим. Всегда используем реальный токен
     try {
       const token = await this.makeAuthRequest();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -52,12 +38,7 @@ export class FnsAuthService {
       return token;
     } catch (error) {
       this.logger.error('Error refreshing FNS token:', error);
-      
-      // Если это IP блокировка и мы в разработке, предлагаем включить dev режим
-      if (error.message.includes('IP address not whitelisted') && this.isDevelopment) {
-        this.logger.warn('Consider setting FNS_DEV_MODE=true in .env for development with mock responses');
-      }
-      
+      // Оставляем только реальную обработку ошибок
       throw new Error('Failed to refresh FNS token');
     }
   }
