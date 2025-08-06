@@ -17,7 +17,15 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:fns": "jest --config jest.fns.config.js",
+    "test:fns:watch": "jest --config jest.fns.config.js --watch",
+    "test:fns:coverage": "jest --config jest.fns.config.js --coverage",
+    "test:fns:unit": "jest --config jest.fns.config.js --testPathPattern=\".spec.ts$\" --testPathIgnorePatterns=\"integration|e2e|scenarios\"",
+    "test:fns:integration": "jest --config jest.fns.config.js --testPathPattern=\"integration.spec.ts$\"",
+    "test:fns:e2e": "jest --config jest.fns.config.js --testPathPattern=\"e2e.spec.ts$\"",
+    "test:fns:scenarios": "jest --config jest.fns.config.js --testPathPattern=\"scenarios.spec.ts$\"",
+    "test:fns:all": "npm run test:fns:unit && npm run test:fns:integration && npm run test:fns:e2e && npm run test:fns:scenarios"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.1",
