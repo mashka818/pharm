@@ -4,7 +4,7 @@ services:
   backend-dev:
     container_name: backend-dev
     build:
-      context: ./backend
+      context: .
     env_file:
       - .env.dev
     ports:
