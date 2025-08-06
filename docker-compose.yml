@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  backend-dev:
+    container_name: backend-dev
+    build:
+      context: .
+    env_file:
+      - .env.dev
+    ports:
+      - "4010:4000"
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:prod"
+    restart: always
+    networks:
+      - pharm-vision
+
+networks:
+  pharm-vision:
+
+volumes:
+  pgdata:
