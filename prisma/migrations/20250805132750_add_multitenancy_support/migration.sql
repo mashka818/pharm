@@ -30,6 +30,6 @@ ALTER TABLE "receipts" ADD CONSTRAINT "receipts_customerId_fkey" FOREIGN KEY ("c
 UPDATE "promotions" SET "domain" = "promotionId" || '.checkpoint.rf' WHERE "domain" = 'default.domain';
 
 -- Update existing data to use the default promotion if it doesn't exist
-INSERT INTO "promotions" ("promotionId", "name", "logo", "favicon", "color", "description", "domain")
-VALUES ('default-promotion', 'Default Network', '/logos/default.png', '/favicons/default.ico', '#007bff', 'Default promotion network', 'default.checkpoint.rf')
+INSERT INTO "promotions" ("promotionId", "name", "logo", "favicon", "color", "description", "domain", "createdAt", "updatedAt")
+VALUES ('default-promotion', 'Default Network', '/logos/default.png', '/favicons/default.ico', '#007bff', 'Default promotion network', 'default.checkpoint.rf', NOW(), NOW())
 ON CONFLICT ("promotionId") DO NOTHING;
