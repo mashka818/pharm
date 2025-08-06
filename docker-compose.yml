@@ -45,6 +45,21 @@ services:
     networks:
       - pharm-vision
 
+  backend-dev:
+    container_name: backend-dev
+    build:
+      context: ./backend
+    env_file:
+      - .env.dev
+    ports:
+      - "4010:4000"
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:prod"
+    depends_on:
+      - postgres
+    restart: always
+    networks:
+      - pharm-vision
+
   postgres:
     container_name: postgres
     image: postgres:15
