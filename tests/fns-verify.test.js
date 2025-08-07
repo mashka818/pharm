@@ -3,8 +3,8 @@ const jwt = require('jsonwebtoken');
 
 class FnsVerifyTest {
   constructor() {
-    this.baseUrl = process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.PORT || '4020'}`;
-    this.verifyEndpoint = `${this.baseUrl}/fns/verify`;
+    this.baseUrl = process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.API_PORT || '4000'}`;
+    this.verifyEndpoint = `${this.baseUrl}/api/fns/verify`;
     this.jwtSecret = process.env.JWT_SECRET || 'gpW7DtMraBcCf4rXXyMmLZ25cMsrjv6z';
     
     // Test data based on real FNS receipt format (legacy method uses string format)

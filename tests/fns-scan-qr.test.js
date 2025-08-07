@@ -3,8 +3,8 @@ const jwt = require('jsonwebtoken');
 
 class FnsScanQrTest {
   constructor() {
-    this.baseUrl = process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.PORT || '4020'}`;
-    this.scanQrEndpoint = `${this.baseUrl}/fns/scan-qr`;
+    this.baseUrl = process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.API_PORT || '4000'}`;
+    this.scanQrEndpoint = `${this.baseUrl}/api/fns/scan-qr`;
     this.jwtSecret = process.env.JWT_SECRET || 'gpW7DtMraBcCf4rXXyMmLZ25cMsrjv6z';
     
     // Test data based on real FNS receipt format
@@ -25,12 +25,13 @@ class FnsScanQrTest {
       date: 'invalid-date'
     };
 
-    // Test network domains
-    this.testDomains = [
-      'р-фарм.чекпоинт.рф',
-      'аптека-первая.чекпоинт.рф',
-      'pharmvision.чекпоинт.рф'
-    ];
+          // Test network domains (должны быть в латинице для HTTP заголовков)
+      // Используем простые домены для тестирования
+      this.testDomains = [
+        'test.domain.com',
+        'example.com',
+        'pharmvision.test'
+      ];
   }
 
   // Generate JWT token for testing
