@@ -4,12 +4,16 @@ import { UpdateOfferDto } from './update-offer.dto';
 import { ProductDtoWithBrand } from 'src/products/dto/product-with-brands.dto';
 
 export class ResponseOfferDto extends OmitType(UpdateOfferDto, ['productIds']) {
+  @ApiProperty({
+    description: 'Список продуктов предложения',
+    type: [UpdateProductDto],
+  })
   products?: UpdateProductDto[];
 }
 
 export class ResponseOfferDtoWithProducts extends ResponseOfferDto {
   @ApiProperty({
-    description: 'Products with brands of offer',
+    description: 'Продукты с брендами для предложения',
     type: [ProductDtoWithBrand],
   })
   products: ProductDtoWithBrand[];

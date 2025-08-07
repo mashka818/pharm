@@ -13,7 +13,7 @@ import { CreateOfferConditionDto } from 'src/offers-conditions/dto/create-offer-
 
 export class CreateOfferDto {
   @ApiProperty({
-    description: 'Profit of offer',
+    description: 'Выгода по предложению',
     example: '10',
     required: true,
   })
@@ -22,7 +22,7 @@ export class CreateOfferDto {
   profit: number;
 
   @ApiProperty({
-    description: 'Profit type of offer',
+    description: 'Тип выгоды (static/from)',
     example: 'static/from',
     required: true,
   })
@@ -30,7 +30,7 @@ export class CreateOfferDto {
   profitType: TProfit;
 
   @ApiProperty({
-    description: 'Color of offer banner',
+    description: 'Цвет баннера предложения',
     example: 'green',
     required: true,
   })
@@ -38,7 +38,7 @@ export class CreateOfferDto {
   banner_color: string;
 
   @ApiProperty({
-    description: 'Start date of offer',
+    description: 'Дата начала действия предложения',
     example: '2024-09-03T08:18:18Z',
     required: true,
   })
@@ -46,7 +46,7 @@ export class CreateOfferDto {
   date_from: string;
 
   @ApiProperty({
-    description: 'End date of offer',
+    description: 'Дата окончания действия предложения',
     example: '2024-09-03T08:18:18Z',
     required: true,
   })
@@ -54,7 +54,7 @@ export class CreateOfferDto {
   date_to: string;
 
   @ApiProperty({
-    description: 'Array of product Ids of offer',
+    description: 'Массив идентификаторов продуктов',
     example: '[1, 2]',
     required: true,
   })
@@ -63,14 +63,14 @@ export class CreateOfferDto {
   productIds: number[];
 
   @ApiProperty({
-    description: 'Banner image of offer. File to set/update, default - string name',
+    description: 'Баннер предложения (файл или строка)',
     example: 'file or string',
     required: true,
   })
   banner_image?: string;
 
   @ApiPropertyOptional({
-    description: 'Condition for the offer',
+    description: 'Условие для предложения',
     type: CreateOfferConditionDto,
   })
   @ValidateNested()
@@ -80,7 +80,7 @@ export class CreateOfferDto {
   condition?: CreateOfferConditionDto;
 
   @ApiProperty({
-    description: 'Promotion id of offer',
+    description: 'Идентификатор промоакции',
     example: 'r-pharm',
     required: true,
   })

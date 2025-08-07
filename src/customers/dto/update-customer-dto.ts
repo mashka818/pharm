@@ -4,7 +4,7 @@ import { IsNumber, IsOptional } from 'class-validator';
 
 export class UpdateCustomerDto extends PartialType(CreateCustomerDto) {
   @ApiProperty({
-    description: 'Id of main withdrawal variant of customer',
+    description: 'Идентификатор основной схемы вывода средств клиента',
     example: 1,
     required: false,
   })

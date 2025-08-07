@@ -4,7 +4,7 @@ import { ApiProperty, OmitType } from '@nestjs/swagger';
 
 export class CustomerDto extends OmitType(CreateCustomerDto, ['password']) {
   @ApiProperty({
-    description: 'Id of customer',
+    description: 'Идентификатор клиента',
     example: 1,
     required: true,
   })
@@ -12,7 +12,7 @@ export class CustomerDto extends OmitType(CreateCustomerDto, ['password']) {
   id: number;
 
   @ApiProperty({
-    description: 'Role of customer',
+    description: 'Роль клиента',
     example: 'CUSTOMER',
     required: true,
   })
@@ -20,14 +20,14 @@ export class CustomerDto extends OmitType(CreateCustomerDto, ['password']) {
   role: 'CUSTOMER';
 
   @ApiProperty({
-    description: 'Bonuses amount of customer',
+    description: 'Количество бонусов клиента',
     example: 100,
     required: true,
   })
   bonuses: number;
 
   @ApiProperty({
-    description: 'Id of main withdrawal variant of customer',
+    description: 'Идентификатор основной схемы вывода средств клиента',
     example: 1,
     required: true,
   })

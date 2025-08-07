@@ -5,15 +5,15 @@ import { PromotionDto } from 'src/promotions/dto/promotion.dto';
 
 export class UpdateCompanyDto extends CreateCompanyDto {
   @ApiProperty({
-    description: 'Id of company user',
-    example: '1',
+    description: 'Идентификатор пользователя компании',
+    example: 1,
     required: true,
   })
   @IsNumber()
   id: number;
 
   @ApiProperty({
-    description: 'Role of company',
+    description: 'Роль компании (всегда COMPANY)',
     example: 'COMPANY',
     required: true,
   })

@@ -4,7 +4,7 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 
 export class UpdateBrandDto extends PartialType(CreateBrandDto) {
   @ApiProperty({
-    description: 'Id of Brand',
+    description: 'Идентификатор бренда',
     example: 1,
     required: true,
   })

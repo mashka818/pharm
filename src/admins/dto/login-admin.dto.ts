@@ -3,7 +3,7 @@ import { IsString } from 'class-validator';
 
 export class LoginAdminDto {
   @ApiProperty({
-    description: 'username of admin',
+    description: 'Имя пользователя администратора',
     example: 'adminUsername',
     required: true,
   })
@@ -11,7 +11,7 @@ export class LoginAdminDto {
   username: string;
 
   @ApiProperty({
-    description: 'password of admin',
+    description: 'Пароль администратора',
     example: 'adminPassword',
     required: true,
   })

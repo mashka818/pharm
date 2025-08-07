@@ -26,15 +26,26 @@ export class AuthGuard implements CanActivate {
       }
       const { authorization } = request.headers;
       if (!authorization || authorization.trim() === '') {
-        throw new UnauthorizedException();
+        console.log('❌ Нет заголовка Authorization');
+        throw new UnauthorizedException('Нет заголовка Authorization');
       }
       const authToken = authorization.replace(/bearer/gim, '').trim();
-      const resp = await this.authService.validateToken(authToken);
-
+      let resp;
+      try {
+        resp = await this.authService.validateToken(authToken);
+      } catch (err) {
+        console.log('❌ Ошибка валидации токена:', err?.message || err);
+        throw new UnauthorizedException('Ошибка валидации токена: ' + (err?.message || err));
+      }
+      if (!resp) {
+        console.log('❌ Токен невалиден или пользователь не найден');
+        throw new UnauthorizedException('Токен невалиден или пользователь не найден');
+      }
       request.user = resp;
       return true;
     } catch (error) {
-      throw new UnauthorizedException();
+      console.log('❌ AuthGuard отказал в доступе:', error?.message || error);
+      throw new UnauthorizedException(error?.message || error);
     }
   }
 }

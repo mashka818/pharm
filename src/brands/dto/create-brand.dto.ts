@@ -4,7 +4,7 @@ import { PromotionDto } from 'src/promotions/dto/promotion.dto';
 
 export class CreateBrandDto {
   @ApiProperty({
-    description: 'Name of Brand',
+    description: 'Название бренда',
     example: 'Нурофен',
     required: true,
   })
@@ -12,7 +12,7 @@ export class CreateBrandDto {
   name: string;
 
   @ApiProperty({
-    description: 'Description of Brand',
+    description: 'Описание бренда',
     example: 'Лекарство от головной боли',
     required: true,
   })
@@ -20,7 +20,7 @@ export class CreateBrandDto {
   description: string;
 
   @ApiProperty({
-    description: 'PromotionId of Promotion(Pharm company)',
+    description: 'Идентификатор промоакции (компании)',
     example: 'x-pharm',
     required: true,
   })
@@ -28,8 +28,8 @@ export class CreateBrandDto {
   promotionId: PromotionDto['promotionId'];
 
   @ApiProperty({
-    description: 'File with Image TO UPDATE/CREATE IMAGE or FileName(Unnecessary)',
-    example: 'File with Image TO UPDATE/CREATE IMAGE or FileName',
+    description: 'Файл с изображением для создания/обновления или имя файла (необязательно)',
+    example: 'logo.png',
     required: false,
   })
   logo?: string;

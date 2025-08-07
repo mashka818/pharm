@@ -4,8 +4,8 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {
   @ApiProperty({
-    description: 'Id of product',
-    example: '1',
+    description: 'Идентификатор продукта',
+    example: 1,
     required: true,
   })
   @IsNumber()
@@ -13,8 +13,8 @@ export class UpdateProductDto extends PartialType(CreateProductDto) {
   id: number;
 
   @ApiProperty({
-    description: 'Id of promotion(Not available to change)',
-    example: 'x-pharm(Not available to change)',
+    description: 'Идентификатор промоакции (нельзя изменить)',
+    example: 'x-pharm',
     required: true,
   })
   @IsString()

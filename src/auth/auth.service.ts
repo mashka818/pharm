@@ -26,9 +26,10 @@ export class AuthService {
   }
 
   async getTokensByPayload(payload: Record<string, any>) {
+    const enhancedPayload = { ...payload, timestamp: Date.now() };
     return {
-      access: await this.jwtService.signAsync(payload),
-      refresh: await this.jwtService.signAsync(payload, { expiresIn: '7d' }),
+      access: await this.jwtService.signAsync(enhancedPayload),
+      refresh: await this.jwtService.signAsync(enhancedPayload, { expiresIn: '7d' }),
     };
   }
 

@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { PromotionsService } from './promotions.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { FullBrandDto } from 'src/brands/dto/full-brand.dto';
 import { UpdatePromotionService } from './update-promotion.service';
@@ -26,6 +26,7 @@ import { PromotionDto } from './dto/promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 import { ResponseOfferDtoWithProducts } from 'src/offers/dto/response-offer.dto';
 
+@ApiBearerAuth()
 @ApiTags('Promotion')
 @Controller('promotions')
 export class PromotionsController {
@@ -36,7 +37,13 @@ export class PromotionsController {
   ) {}
 
   @UseGuards(AdminGuard)
-  @ApiResponse({ type: PromotionDto })
+  @ApiOperation({ summary: 'Создать промоакцию', description: 'Создаёт новую промоакцию.' })
+  @ApiResponse({ status: 201, description: 'Промоакция успешно создана', type: PromotionDto })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 409, description: 'Промоакция с таким кодом уже существует' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @ApiBody({ type: PromotionDto })
   @Post()
   @UseInterceptors(
@@ -56,24 +63,41 @@ export class PromotionsController {
     },
   ) {
     const { banner, logo, favicon } = files;
-
     return this.promotionsService.create(promotionDto, logo, banner, favicon);
   }
 
   @UseGuards(AdminGuard)
-  @ApiResponse({ type: [PromotionDto] })
+  @ApiOperation({ summary: 'Получить все промоакции', description: 'Возвращает список всех промоакций.' })
+  @ApiResponse({ status: 200, description: 'Список промоакций', type: [PromotionDto] })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @Get()
   findAll() {
     return this.promotionsService.findAll();
   }
 
-  @ApiResponse({ type: PromotionDto })
+  @ApiOperation({ summary: 'Получить промоакцию по ID', description: 'Возвращает данные промоакции по её идентификатору.' })
+  @ApiResponse({ status: 200, description: 'Данные промоакции', type: PromotionDto })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 404, description: 'Промоакция не найдена' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @Get(':promotionId')
   findOne(@Param('promotionId') promotionId: string) {
     return this.promotionsService.findOne(promotionId);
   }
 
   @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Обновить промоакцию', description: 'Обновляет данные промоакции.' })
+  @ApiResponse({ status: 200, description: 'Промоакция успешно обновлена', type: PromotionDto })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 404, description: 'Промоакция не найдена' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+  @ApiBody({ type: PromotionDto })
+  @Patch(':promotionId')
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'banner', maxCount: 1 },
@@ -81,9 +105,6 @@ export class PromotionsController {
       { name: 'favicon', maxCount: 1 },
     ]),
   )
-  @ApiResponse({ type: PromotionDto })
-  @ApiBody({ type: PromotionDto })
-  @Patch(':promotionId')
   update(
     @Param('promotionId') promotionId: string,
     @Body() updatePromotionDto: UpdatePromotionDto,
@@ -95,7 +116,6 @@ export class PromotionsController {
     },
   ) {
     const { banner, logo, favicon } = files;
-
     return this.updatePromotionService.update(
       promotionId,
       updatePromotionDto,
@@ -106,6 +126,12 @@ export class PromotionsController {
   }
 
   @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Удалить промоакцию', description: 'Удаляет промоакцию по идентификатору.' })
+  @ApiResponse({ status: 200, description: 'Промоакция успешно удалена' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 404, description: 'Промоакция не найдена' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @Delete(':promotionId')
   remove(@Param('promotionId') promotionId: string) {
     return this.promotionsService.remove(promotionId);

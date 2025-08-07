@@ -3,7 +3,7 @@ import { IsIn, IsString } from 'class-validator';
 
 export class CreateWithdrawalVariantDto {
   @ApiProperty({
-    description: 'Type of withdrawal variant',
+    description: 'Тип варианта вывода',
     example: 'bank/phone',
     required: true,
   })
@@ -11,7 +11,7 @@ export class CreateWithdrawalVariantDto {
   type: WithdrawalType;
 
   @ApiProperty({
-    description: 'Icon type of withdrawal variant',
+    description: 'Тип иконки варианта вывода',
     example: 'mir',
     required: true,
   })
@@ -19,7 +19,7 @@ export class CreateWithdrawalVariantDto {
   iconType: string;
 
   @ApiProperty({
-    description: 'Title of withdrawal variant (phone number or card number)',
+    description: 'Заголовок варианта вывода (номер телефона или карты)',
     example: '8 (999) 999 99-99 / 1234 1234 1234 1234',
     required: true,
   })

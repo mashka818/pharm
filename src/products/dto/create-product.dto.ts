@@ -3,14 +3,14 @@ import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateProductDto {
   @ApiProperty({
-    description: 'Name of product',
+    description: 'Название продукта',
     example: 'Терафлю в пак. 6 шт.',
     required: true,
   })
   @IsString()
   name: string;
   @ApiProperty({
-    description: 'Sku of product',
+    description: 'SKU продукта',
     example: '21nSq1n',
     required: true,
   })
@@ -18,7 +18,7 @@ export class CreateProductDto {
   sku: string;
 
   @ApiProperty({
-    description: 'Fix cashback of product',
+    description: 'Фиксированный кешбэк продукта',
     example: '30',
     required: false,
   })
@@ -27,7 +27,7 @@ export class CreateProductDto {
   fixCashback?: number;
 
   @ApiProperty({
-    description: 'Cashback type of product',
+    description: 'Тип кешбэка продукта',
     example: 'percent/amount',
     required: false,
   })
@@ -36,7 +36,7 @@ export class CreateProductDto {
   cashbackType?: TCashbackType;
 
   @ApiProperty({
-    description: 'Brand id of product(Not available to change)',
+    description: 'Идентификатор бренда продукта (нельзя изменить)',
     example: 1,
     required: true,
   })

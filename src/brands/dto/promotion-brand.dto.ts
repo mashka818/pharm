@@ -3,12 +3,12 @@ import { UpdateBrandDto } from './update-brand.dto';
 
 class Range {
   @ApiProperty({
-    description: 'Max of fix cashback',
+    description: 'Минимальное значение фиксированного кешбэка',
     example: 1,
   })
   min: number;
   @ApiProperty({
-    description: 'Min of fix cashback',
+    description: 'Максимальное значение фиксированного кешбэка',
     example: 100,
   })
   max: number;
@@ -16,12 +16,12 @@ class Range {
 
 export class PromotionBrandDto extends UpdateBrandDto {
   @ApiProperty({
-    description: 'Range amount',
+    description: 'Диапазон суммы',
     type: [Range],
   })
   amount?: Range;
   @ApiProperty({
-    description: 'Range percent',
+    description: 'Диапазон процентов',
     type: [Range],
   })
   percent?: Range;

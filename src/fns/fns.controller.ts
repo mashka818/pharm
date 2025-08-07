@@ -18,6 +18,7 @@ import { ReceiptStatusDto } from './dto/receipt-status.dto';
 
 @ApiTags('FNS Integration')
 @Controller('fns')
+@ApiBearerAuth()
 export class FnsController {
   private readonly logger = new Logger(FnsController.name);
 
@@ -33,7 +34,6 @@ export class FnsController {
     description: 'Поддомен сети аптек (например: р-фарм.чекпоинт.рф)',
     required: true,
   })
-  @ApiBearerAuth()
   @ApiResponse({ 
     status: 200, 
     description: 'QR код успешно отправлен на обработку',
@@ -87,7 +87,6 @@ export class FnsController {
     summary: 'Проверить чек по QR коду (legacy метод)',
     description: 'Проверяет валидность чека и рассчитывает кешбек для общей системы (без привязки к конкретной сети)'
   })
-  @ApiBearerAuth()
   @ApiResponse({ 
     status: 200, 
     description: 'Чек успешно отправлен на проверку',

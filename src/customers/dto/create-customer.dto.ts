@@ -3,24 +3,24 @@ import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-valid
 
 export class CreateCustomerDto {
   @ApiProperty({
-    description: 'Name of customer',
-    example: 'Ivan',
+    description: 'Имя клиента',
+    example: 'Иван',
     required: true,
   })
   @IsString()
   name: string;
 
   @ApiProperty({
-    description: 'Surname of customer',
-    example: 'Ivanov',
+    description: 'Фамилия клиента',
+    example: 'Иванов',
     required: true,
   })
   @IsString()
   surname: string;
 
   @ApiProperty({
-    description: 'Patronymic of customer',
-    example: 'Ivanovich',
+    description: 'Отчество клиента',
+    example: 'Иванович',
     required: false,
   })
   @IsOptional()
@@ -28,7 +28,7 @@ export class CreateCustomerDto {
   patronymic?: string;
 
   @ApiProperty({
-    description: 'Email of customer',
+    description: 'Email клиента',
     example: 'ivanov@example.com',
     required: true,
   })
@@ -36,7 +36,7 @@ export class CreateCustomerDto {
   email: string;
 
   @ApiProperty({
-    description: 'PromotionId of customer account',
+    description: 'Идентификатор промоакции клиента',
     example: 'r-pharm',
     required: true,
   })
@@ -44,7 +44,7 @@ export class CreateCustomerDto {
   promotionId: string;
 
   @ApiProperty({
-    description: 'Password of customer',
+    description: 'Пароль клиента',
     example: 'somePassword111',
     minLength: 4,
     maxLength: 16,
@@ -56,8 +56,8 @@ export class CreateCustomerDto {
   password: string;
 
   @ApiProperty({
-    description: 'Address of customer account',
-    example: 'Г. Москва',
+    description: 'Адрес клиента',
+    example: 'г. Москва',
     required: true,
   })
   @IsString()

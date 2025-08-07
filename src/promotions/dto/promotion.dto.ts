@@ -3,7 +3,7 @@ import { IsOptional, IsString } from 'class-validator';
 
 export class PromotionDto {
   @ApiProperty({
-    description: 'Custom unique code of promotion',
+    description: 'Уникальный код промоакции',
     example: 'x-pharm',
     required: true,
   })
@@ -11,7 +11,7 @@ export class PromotionDto {
   promotionId: string;
 
   @ApiProperty({
-    description: 'Name of promotion',
+    description: 'Название промоакции',
     example: 'Икс-Фарм',
     required: true,
   })
@@ -19,37 +19,37 @@ export class PromotionDto {
   name: string;
 
   @ApiProperty({
-    description: 'Logo file or FileName',
-    example: 'File with Image TO UPDATE/CREATE IMAGE or FileName',
+    description: 'Логотип (файл или имя файла)',
+    example: 'logo.png',
     required: true,
   })
   logo: string;
 
   @ApiProperty({
-    description: 'Banner file or FileName',
-    example: 'File with Image TO UPDATE/CREATE IMAGE or FileName',
+    description: 'Баннер (файл или имя файла)',
+    example: 'banner.png',
     required: false,
   })
   @IsOptional()
   banner?: string;
 
   @ApiProperty({
-    description: 'Favicon file or FileName',
-    example: 'File with Image TO UPDATE/CREATE IMAGE or FileName',
+    description: 'Favicon (файл или имя файла)',
+    example: 'favicon.ico',
     required: false,
   })
   favicon: string;
 
   @ApiProperty({
-    description: 'Description of promotion',
-    example: 'some description',
+    description: 'Описание промоакции',
+    example: 'Описание акции',
     required: true,
   })
   @IsString()
   description: string;
 
   @ApiProperty({
-    description: 'Color',
+    description: 'Цвет оформления',
     example: 'green',
     required: true,
   })
@@ -57,7 +57,7 @@ export class PromotionDto {
   color: string;
 
   @ApiProperty({
-    description: 'Domain for multi-tenancy',
+    description: 'Домен для мультиарендности',
     example: 'x-farm.checkpoint.rf',
     required: true,
   })
@@ -65,7 +65,7 @@ export class PromotionDto {
   domain: string;
 
   @ApiProperty({
-    description: 'INN of the pharmacy network',
+    description: 'ИНН аптечной сети',
     example: '5032364514',
     required: false,
   })
@@ -74,7 +74,7 @@ export class PromotionDto {
   inn?: string;
 
   @ApiProperty({
-    description: 'OGRN of the pharmacy network',
+    description: 'ОГРН аптечной сети',
     example: '1234567890123',
     required: false,
   })

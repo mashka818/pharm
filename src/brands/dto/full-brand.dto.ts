@@ -5,13 +5,13 @@ import { ResponseOfferDto } from 'src/offers/dto/response-offer.dto';
 
 export class FullBrandDto extends UpdateBrandDto {
   @ApiProperty({
-    description: 'Products of brand',
+    description: 'Список продуктов бренда',
     type: [UpdateProductDto],
   })
   products?: UpdateProductDto[];
 
   @ApiProperty({
-    description: 'Offers of brand',
+    description: 'Список предложений бренда',
     type: [ResponseOfferDto],
   })
   offers?: ResponseOfferDto[];

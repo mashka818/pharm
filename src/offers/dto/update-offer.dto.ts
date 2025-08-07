@@ -6,7 +6,7 @@ import { UpdateOfferConditionDto } from 'src/offers-conditions/dto/update-offer-
 
 export class UpdateOfferDto extends PartialType(OmitType(CreateOfferDto, ['condition'])) {
   @ApiProperty({
-    description: 'Id of offer',
+    description: 'Идентификатор предложения',
     example: 1,
     required: true,
   })
@@ -16,15 +16,15 @@ export class UpdateOfferDto extends PartialType(OmitType(CreateOfferDto, ['condi
   id?: number;
 
   @ApiProperty({
-    description: 'Banner image of offer. File to set/update, default - string name',
+    description: 'Баннер предложения (файл или строка)',
     example: 'file or string',
   })
   @IsOptional()
   banner_image?: string;
 
   @ApiProperty({
-    description: 'Id of condition',
-    example: 'id as number/send empty field to delete condition',
+    description: 'Идентификатор условия',
+    example: 'id как число/пустое поле для удаления условия',
   })
   @Transform(({ value }) => {
     if (value) {
@@ -37,7 +37,7 @@ export class UpdateOfferDto extends PartialType(OmitType(CreateOfferDto, ['condi
   conditionId?: number;
 
   @ApiPropertyOptional({
-    description: 'Condition for the offer',
+    description: 'Условие для предложения',
     type: UpdateOfferConditionDto,
   })
   @IsOptional()

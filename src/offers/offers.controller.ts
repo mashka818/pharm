@@ -14,13 +14,14 @@ import { OffersService } from './offers.service';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
-import { ApiBody, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ResponseOfferDto, ResponseOfferDtoWithProducts } from './dto/response-offer.dto';
 import { GetOneOfferService } from './get-one-offer.service';
 import { CreateOfferService } from './create-offer.service';
 import { UpdateOfferService } from './update-offer.service';
 
+@ApiBearerAuth()
 @ApiTags('Offer')
 @Controller('offers')
 export class OffersController {
@@ -31,7 +32,13 @@ export class OffersController {
     private readonly updateOfferService: UpdateOfferService,
   ) {}
 
-  @ApiResponse({ type: ResponseOfferDto })
+  @ApiOperation({ summary: 'Создать предложение', description: 'Создаёт новое предложение.' })
+  @ApiResponse({ status: 201, description: 'Предложение успешно создано', type: ResponseOfferDto })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 409, description: 'Предложение с такими параметрами уже существует' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @ApiBody({ type: CreateOfferDto })
   @UseGuards(AdminGuard)
   @UseInterceptors(FileInterceptor('banner_image'))
@@ -43,19 +50,34 @@ export class OffersController {
     return this.createOfferService.create(createOfferDto, banner_image);
   }
 
-  @ApiResponse({ type: ResponseOfferDtoWithProducts })
+  @ApiOperation({ summary: 'Получить предложение по ID', description: 'Возвращает данные предложения по идентификатору.' })
+  @ApiResponse({ status: 200, description: 'Данные предложения', type: ResponseOfferDtoWithProducts })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 404, description: 'Предложение не найдено' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @Get(':id')
   getOneOffer(@Param('id') id: number) {
     return this.getOneOfferService.getOne(id);
   }
 
-  @ApiResponse({ type: [ResponseOfferDto] })
+  @ApiOperation({ summary: 'Получить все предложения', description: 'Возвращает список всех предложений.' })
+  @ApiResponse({ status: 200, description: 'Список предложений', type: [ResponseOfferDto] })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @Get()
   getAllOffers() {
     return this.offersService.getAll();
   }
 
-  @ApiResponse({ type: ResponseOfferDtoWithProducts })
+  @ApiOperation({ summary: 'Обновить предложение', description: 'Обновляет данные предложения.' })
+  @ApiResponse({ status: 200, description: 'Предложение успешно обновлено', type: ResponseOfferDtoWithProducts })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 404, description: 'Предложение не найдено' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @ApiBody({ type: UpdateOfferDto })
   @UseGuards(AdminGuard)
   @UseInterceptors(FileInterceptor('banner_image'))
@@ -68,6 +90,12 @@ export class OffersController {
     return this.updateOfferService.update(id, updateOfferDto, banner_image);
   }
 
+  @ApiOperation({ summary: 'Удалить предложение', description: 'Удаляет предложение по идентификатору.' })
+  @ApiResponse({ status: 200, description: 'Предложение успешно удалено' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 404, description: 'Предложение не найдено' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @UseGuards(AdminGuard)
   @Delete(':id')
   removeOffer(@Param('id') id: number) {
