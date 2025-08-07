@@ -6,7 +6,6 @@ import axios from 'axios';
 export class FnsAuthService {
   private readonly logger = new Logger(FnsAuthService.name);
   private cachedToken: { token: string; expiresAt: Date } | null = null;
-  private readonly isDevelopment = process.env.NODE_ENV !== 'production';
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -117,11 +116,7 @@ export class FnsAuthService {
     throw new Error('Failed to parse token from FNS response');
   }
 
-  private generateMockToken(): string {
-    const mockToken = `dev_mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    this.logger.debug(`Generated mock token: ${mockToken.substring(0, 20)}...`);
-    return mockToken;
-  }
+
 
   async loadTokenFromDb(): Promise<void> {
     try {

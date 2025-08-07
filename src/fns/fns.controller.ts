@@ -166,50 +166,5 @@ export class FnsController {
     };
   }
 
-  @Get('test/connection')
-  @ApiOperation({ 
-    summary: 'Тестировать подключение к ФНС API',
-    description: 'Проверяет доступность ФНС API и возможность аутентификации'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Результат тестирования подключения',
-    schema: {
-      type: 'object',
-      properties: {
-        status: { type: 'string' },
-        message: { type: 'string' },
-        ip: { type: 'string' },
-        timestamp: { type: 'string' },
-        authTest: { type: 'object' },
-        serviceTest: { type: 'object' }
-      }
-    }
-  })
-  async testFnsConnection() {
-    return this.fnsService.testFnsConnection();
-  }
 
-  @Post('test/qr')
-  @ApiOperation({ 
-    summary: 'Тестировать QR код с примером из документации',
-    description: 'Отправляет тестовый QR код из документации ФНС для проверки работоспособности'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Результат тестирования QR кода',
-    type: Object
-  })
-  async testQrCode() {
-    const testQrData = {
-      fn: '9287440300090728',
-      fd: '77133',
-      fp: '1482926127',
-      sum: 240000, 
-      date: '2019-04-09T16:38:00',
-      typeOperation: 1
-    };
-
-    return this.fnsService.testQrProcessing(testQrData);
-  }
 } 

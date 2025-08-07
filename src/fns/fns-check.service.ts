@@ -4,14 +4,9 @@ import axios from 'axios';
 @Injectable()
 export class FnsCheckService {
   private readonly logger = new Logger(FnsCheckService.name);
-  private readonly isDevelopment = process.env.NODE_ENV !== 'production';
 
   async sendCheckRequest(qrData: any, token: string): Promise<string> {
     this.logger.log(`Sending check request for QR data: ${JSON.stringify(qrData)}`);
-
-    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
-      return this.generateMockMessageId(qrData);
-    }
 
     try {
       const messageId = await this.makeSendMessageRequest(qrData, token);
@@ -20,21 +15,12 @@ export class FnsCheckService {
       return messageId;
     } catch (error) {
       this.logger.error('Error sending check request:', error);
-      
-      if (error.message.includes('IP address not whitelisted') && this.isDevelopment) {
-        this.logger.warn('Consider setting FNS_DEV_MODE=true for development with mock responses');
-      }
-      
       throw new Error('Failed to send check request to FNS');
     }
   }
 
   async getCheckResult(messageId: string, token: string): Promise<any> {
     this.logger.log(`Getting check result for message ID: ${messageId}`);
-
-    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
-      return this.generateMockResult(messageId);
-    }
 
     try {
       const result = await this.makeGetMessageRequest(messageId, token);
@@ -229,12 +215,6 @@ export class FnsCheckService {
   }
 
   async waitForResult(messageId: string, token: string, maxAttempts: number = 10): Promise<any> {
-    if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
-      this.logger.warn(`Mock mode: returning immediate result for ${messageId}`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return this.generateMockResult(messageId);
-    }
-
     let attempts = 0;
     
     while (attempts < maxAttempts) {
@@ -278,52 +258,5 @@ export class FnsCheckService {
     throw new Error('Timeout waiting for FNS result');
   }
 
-  private generateMockMessageId(qrData: any): string {
-    const mockId = `dev-mock-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
-    this.logger.warn(`Generated mock message ID: ${mockId} for QR: ${qrData.fn}`);
-    return mockId;
-  }
 
-  private generateMockResult(messageId: string): any {
-    const scenarios = [
-      {
-        processingStatus: 'COMPLETED',
-        status: 'success',
-        isValid: true,
-        isReturn: false,
-        isFake: false,
-        receiptData: {
-          dateTime: '2025-01-05T14:30:00',
-          fiscalDocumentNumber: '77133',
-          totalSum: 24000,
-          retailPlace: 'Тестовая аптека',
-          items: [
-            { name: 'Тестовый препарат', price: 24000, quantity: 1 }
-          ]
-        }
-      },
-      {
-        processingStatus: 'COMPLETED',
-        status: 'rejected',
-        isValid: false,
-        isReturn: false,
-        isFake: true,
-        receiptData: null
-      },
-      {
-        processingStatus: 'COMPLETED',
-        status: 'rejected',
-        isValid: false,
-        isReturn: true,
-        isFake: false,
-        receiptData: null
-      }
-    ];
-
-    const scenarioIndex = Math.abs(messageId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % scenarios.length;
-    const result = scenarios[scenarioIndex];
-    
-    this.logger.warn(`Generated mock result for ${messageId}: ${result.status}`);
-    return result;
-  }
 } 
