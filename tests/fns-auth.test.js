@@ -46,7 +46,7 @@ class FnsAuthTest {
       const token = this.parseAuthResponse(response.data);
       const expiryInfo = this.parseExpiryTime(response.data);
       
-      console.log(`🎯 Получен токен: ${token.substring(0, 32)}...`);
+      console.log(`🎯 Получен токен: ${token}`);
       console.log(`⏰ Время истечения: ${expiryInfo}`);
       
       if (token && token.length > 10) {
