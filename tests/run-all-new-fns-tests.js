@@ -117,10 +117,11 @@ class FnsEndpointsTestRunner {
     
     console.log('\n📄 Детальные логи доступны выше для каждого эндпоинта');
     console.log('🔧 Для решения проблем проверьте:');
-    console.log('  - Доступность бэкенд сервера (BACKEND_URL)');
+    console.log('  - Доступность продакшн сервера (PROD_SERVER_IP:PORT)');
     console.log('  - Корректность JWT_SECRET');
-    console.log('  - Настройки авторизации и базы данных');
+    console.log('  - Настройки базы данных (DATABASE_URL)');
     console.log('  - Конфигурацию FNS API (FTX_API_URL, FTX_TOKEN)');
+    console.log('  - Сетевое подключение к серверу 91.236.198.205:4020');
   }
 
   async runSpecificEndpoint(endpointName) {
@@ -158,8 +159,11 @@ class FnsEndpointsTestRunner {
     console.log('   node tests/run-all-new-fns-tests.js queueStats');
     console.log('   node tests/run-all-new-fns-tests.js dailyCount\n');
     console.log('🔧 Переменные окружения:');
-    console.log('   BACKEND_URL - URL бэкенд сервера (по умолчанию: http://localhost:4020)');
+    console.log('   BACKEND_URL - URL бэкенд сервера (по умолчанию: http://PROD_SERVER_IP:PORT)');
+    console.log('   PROD_SERVER_IP - IP продакшн сервера (по умолчанию: 91.236.198.205)');
+    console.log('   PORT - Порт сервера (по умолчанию: 4020)');
     console.log('   JWT_SECRET - Секрет для JWT токенов');
+    console.log('   DATABASE_URL - Строка подключения к базе данных');
     console.log('   FTX_API_URL - URL FNS API');
     console.log('   FTX_TOKEN - Токен FNS API\n');
   }
@@ -213,7 +217,8 @@ if (require.main === module) {
   console.log('🧪 === FNS ENDPOINTS AUTOMATED TESTING SUITE ===\n');
   console.log('📅 Дата запуска:', new Date().toLocaleString('ru-RU'));
   console.log('🖥️ Среда:', process.env.NODE_ENV || 'development');
-  console.log('🌐 Backend URL:', process.env.BACKEND_URL || 'http://localhost:4020');
+  console.log('🌐 Backend URL:', process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.PORT || '4020'}`);
+  console.log('🗄️ Database:', process.env.DATABASE_URL ? 'Configured' : 'Not configured');
   console.log('\n');
   
   runTests();

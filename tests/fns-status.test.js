@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 
 class FnsStatusTest {
   constructor() {
-    this.baseUrl = process.env.BACKEND_URL || 'http://localhost:4020';
+    this.baseUrl = process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.PORT || '4020'}`;
     this.statusEndpoint = `${this.baseUrl}/fns/status`;
     this.jwtSecret = process.env.JWT_SECRET || 'gpW7DtMraBcCf4rXXyMmLZ25cMsrjv6z';
     
