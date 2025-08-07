@@ -15,10 +15,12 @@ import { FnsService } from './fns.service';
 import { ScanQrCodeDto } from './dto/scan-qr-code.dto';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @ApiTags('FNS Integration')
 @Controller('fns')
 @ApiBearerAuth()
+@UseGuards(AuthGuard)
 export class FnsController {
   private readonly logger = new Logger(FnsController.name);
 
