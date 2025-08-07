@@ -4,10 +4,12 @@
 # Использование: ./run-tests-production.sh [endpoint]
 
 echo "🚀 Запуск FNS тестов на продакшн сервере"
-echo "📍 Сервер: 91.236.198.205:4020"
+echo "📍 API Сервер: 91.236.198.205:4000"
+echo "📍 Swagger: 91.236.198.205:4020"
 echo "─────────────────────────────────────"
 
 # Устанавливаем переменные окружения для продакшн сервера
+export API_PORT=4000
 export PORT=4020
 export DATABASE_URL="postgresql://pharm_vision:pharm_vision_password@localhost:5432/pharm_vision_db_test?schema=public"
 export ROOT_ADMIN_USERNAME=admin
@@ -21,12 +23,12 @@ export FTX_API_URL="https://openapi.nalog.ru:8090"
 export FTX_TOKEN="LFgDIA4yBZjW6h174iwVDcRoDHhjmpuFLtAX3kHPT9ctgggajk36aLJIzIcs2kZyKvTqLy4rSEHi7KOgY0fuNHKPbGCekDg9qjpin04K4ZyfolqtwDBZ6f6Isja3MMWe"
 export PROD_SERVER_IP=91.236.198.205
 
-# Проверяем доступность сервера
-echo "🔍 Проверка доступности сервера..."
-if curl -s --connect-timeout 5 http://91.236.198.205:4020/health > /dev/null 2>&1; then
-    echo "✅ Сервер доступен"
+# Проверяем доступность API сервера
+echo "🔍 Проверка доступности API сервера..."
+if curl -s --connect-timeout 5 http://91.236.198.205:4000/api > /dev/null 2>&1; then
+    echo "✅ API сервер доступен"
 else
-    echo "⚠️ Сервер может быть недоступен (но тесты все равно будут запущены)"
+    echo "⚠️ API сервер может быть недоступен (но тесты все равно будут запущены)"
 fi
 
 echo ""

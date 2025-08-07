@@ -117,11 +117,12 @@ class FnsEndpointsTestRunner {
     
     console.log('\n📄 Детальные логи доступны выше для каждого эндпоинта');
     console.log('🔧 Для решения проблем проверьте:');
-    console.log('  - Доступность продакшн сервера (PROD_SERVER_IP:PORT)');
+    console.log('  - Доступность API сервера (PROD_SERVER_IP:API_PORT = 91.236.198.205:4000)');
     console.log('  - Корректность JWT_SECRET');
     console.log('  - Настройки базы данных (DATABASE_URL)');
     console.log('  - Конфигурацию FNS API (FTX_API_URL, FTX_TOKEN)');
-    console.log('  - Сетевое подключение к серверу 91.236.198.205:4020');
+    console.log('  - Сетевое подключение к API серверу 91.236.198.205:4000');
+    console.log('  - Примечание: Swagger работает на порту 4020, API на порту 4000');
   }
 
   async runSpecificEndpoint(endpointName) {
@@ -159,9 +160,10 @@ class FnsEndpointsTestRunner {
     console.log('   node tests/run-all-new-fns-tests.js queueStats');
     console.log('   node tests/run-all-new-fns-tests.js dailyCount\n');
     console.log('🔧 Переменные окружения:');
-    console.log('   BACKEND_URL - URL бэкенд сервера (по умолчанию: http://PROD_SERVER_IP:PORT)');
+    console.log('   BACKEND_URL - URL бэкенд сервера (по умолчанию: http://PROD_SERVER_IP:API_PORT)');
     console.log('   PROD_SERVER_IP - IP продакшн сервера (по умолчанию: 91.236.198.205)');
-    console.log('   PORT - Порт сервера (по умолчанию: 4020)');
+    console.log('   API_PORT - Порт API сервера (по умолчанию: 4000)');
+    console.log('   PORT - Порт Swagger (по умолчанию: 4020, не используется для API тестов)');
     console.log('   JWT_SECRET - Секрет для JWT токенов');
     console.log('   DATABASE_URL - Строка подключения к базе данных');
     console.log('   FTX_API_URL - URL FNS API');
@@ -217,8 +219,10 @@ if (require.main === module) {
   console.log('🧪 === FNS ENDPOINTS AUTOMATED TESTING SUITE ===\n');
   console.log('📅 Дата запуска:', new Date().toLocaleString('ru-RU'));
   console.log('🖥️ Среда:', process.env.NODE_ENV || 'development');
-  console.log('🌐 Backend URL:', process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.PORT || '4020'}`);
+  console.log('🌐 Backend URL:', process.env.BACKEND_URL || `http://${process.env.PROD_SERVER_IP || '91.236.198.205'}:${process.env.API_PORT || '4000'}`);
   console.log('🗄️ Database:', process.env.DATABASE_URL ? 'Configured' : 'Not configured');
+  console.log('🔧 API Port:', process.env.API_PORT || '4000');
+  console.log('📊 Swagger Port:', process.env.PORT || '4020 (not used for API tests)');
   console.log('\n');
   
   runTests();
