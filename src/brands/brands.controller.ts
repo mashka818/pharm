@@ -16,7 +16,7 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateBrandDto } from './dto/update-brand.dto';
-import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @UseGuards(AdminGuard)
@@ -32,7 +32,19 @@ export class BrandsController {
   @ApiResponse({ status: 403, description: 'Доступ запрещён' })
   @ApiResponse({ status: 409, description: 'Бренд с таким названием уже существует' })
   @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
-  @ApiBody({ type: CreateBrandDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Нурофен' },
+        description: { type: 'string', example: 'Лекарство от головной боли' },
+        promotionId: { type: 'string', example: 'x-pharm' },
+        logo: { type: 'string', format: 'binary' },
+      },
+      required: ['name', 'description', 'promotionId'],
+    },
+  })
   @Post()
   @UseInterceptors(FileInterceptor('logo'))
   createBrand(@Body() createBrandDto: CreateBrandDto, @UploadedFile() logo: Express.Multer.File) {

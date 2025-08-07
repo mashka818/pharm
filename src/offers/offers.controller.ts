@@ -14,7 +14,7 @@ import { OffersService } from './offers.service';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { UpdateOfferDto } from './dto/update-offer.dto';
-import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ResponseOfferDto, ResponseOfferDtoWithProducts } from './dto/response-offer.dto';
 import { GetOneOfferService } from './get-one-offer.service';
@@ -39,7 +39,23 @@ export class OffersController {
   @ApiResponse({ status: 403, description: 'Доступ запрещён' })
   @ApiResponse({ status: 409, description: 'Предложение с такими параметрами уже существует' })
   @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
-  @ApiBody({ type: CreateOfferDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        profit: { type: 'number', example: 10 },
+        profitType: { type: 'string', example: 'static' },
+        banner_color: { type: 'string', example: 'green' },
+        date_from: { type: 'string', example: '2024-09-03T08:18:18Z' },
+        date_to: { type: 'string', example: '2024-09-03T08:18:18Z' },
+        productIds: { type: 'string', example: '[1,2]' },
+        banner_image: { type: 'string', format: 'binary' },
+        promotionId: { type: 'string', example: 'r-pharm' },
+      },
+      required: ['profit', 'profitType', 'banner_color', 'date_from', 'date_to', 'productIds', 'promotionId'],
+    },
+  })
   @UseGuards(AdminGuard)
   @UseInterceptors(FileInterceptor('banner_image'))
   @Post()

@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { PromotionsService } from './promotions.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { FullBrandDto } from 'src/brands/dto/full-brand.dto';
 import { UpdatePromotionService } from './update-promotion.service';
@@ -44,7 +44,26 @@ export class PromotionsController {
   @ApiResponse({ status: 403, description: 'Доступ запрещён' })
   @ApiResponse({ status: 409, description: 'Промоакция с таким кодом уже существует' })
   @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
-  @ApiBody({ type: PromotionDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        promotionId: { type: 'string', example: 'x-pharm' },
+        name: { type: 'string', example: 'Икс-Фарм' },
+        logo: { type: 'string', format: 'binary' },
+        banner: { type: 'string', format: 'binary' },
+        favicon: { type: 'string', format: 'binary' },
+        description: { type: 'string', example: 'Описание акции' },
+        color: { type: 'string', example: 'green' },
+        domain: { type: 'string', example: 'x-farm.checkpoint.rf' },
+        inn: { type: 'string', example: '5032364514' },
+        ogrn: { type: 'string', example: '1234567890123' },
+        appId: { type: 'string', example: '2dbfa911-1931-48e7-802f-640dc64429b0' },
+      },
+      required: ['promotionId', 'name', 'logo', 'description', 'color', 'domain'],
+    },
+  })
   @Post()
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -55,14 +74,9 @@ export class PromotionsController {
   )
   create(
     @Body() promotionDto: PromotionDto,
-    @UploadedFiles()
-    files: {
-      banner?: Express.Multer.File[];
-      logo: Express.Multer.File[];
-      favicon: Express.Multer.File[];
-    },
+    @UploadedFiles() files: { banner?: Express.Multer.File[]; logo?: Express.Multer.File[]; favicon?: Express.Multer.File[]; } = {},
   ) {
-    const { banner, logo, favicon } = files;
+    const { banner, logo, favicon } = files || {};
     return this.promotionsService.create(promotionDto, logo, banner, favicon);
   }
 
