@@ -162,7 +162,7 @@ export class FnsController {
     const count = await this.fnsService.getDailyRequestCount();
     return {
       count,
-      limit: 1000 // ФНС лимит из документации
+      limit: 1000 
     };
   }
 
@@ -201,12 +201,11 @@ export class FnsController {
     type: Object
   })
   async testQrCode() {
-    // Пример QR данных из документации ФНС
     const testQrData = {
       fn: '9287440300090728',
       fd: '77133',
       fp: '1482926127',
-      sum: 240000, // 2400 рублей в копейках
+      sum: 240000, 
       date: '2019-04-09T16:38:00',
       typeOperation: 1
     };

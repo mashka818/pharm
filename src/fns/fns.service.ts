@@ -25,7 +25,6 @@ export class FnsService {
     this.logger.log(`Processing QR scan for customer ${customerId}, promotion ${promotionId}, host: ${host}`);
     
     try {
-      // Проверяем существует ли промоакция
       const promotion = await this.prisma.promotion.findUnique({
         where: { promotionId },
       });
@@ -34,13 +33,11 @@ export class FnsService {
         throw new BadRequestException('Promotion not found');
       }
 
-      // Проверяем домен
       const expectedDomain = promotion.domain;
       if (!host.includes(expectedDomain)) {
         throw new BadRequestException('Invalid domain for this promotion');
       }
 
-      // Проверяем лимиты кешбека для данного пользователя и чека
       const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimitsForPromotion(
         customerId, 
         qrData, 
@@ -55,7 +52,6 @@ export class FnsService {
         };
       }
 
-      // Проверяем дневной лимит запросов для промоакции
       const dailyLimit = await this.checkDailyLimit(promotionId);
       if (!dailyLimit.allowed) {
         return {
@@ -65,7 +61,6 @@ export class FnsService {
         };
       }
 
-      // Добавляем в очередь с привязкой к промоакции
       const requestId = await this.fnsQueueService.addToQueueWithPromotion(
         qrData, 
         customerId, 
@@ -222,7 +217,6 @@ export class FnsService {
   private async handleCheckResult(requestId: string, result: any, customerId?: number) {
     const status = result.status;
     
-    // Получаем промоакцию из запроса (если поле существует)
     let fnsRequest;
     try {
       fnsRequest = await this.prisma.fnsRequest.findUnique({
@@ -230,7 +224,6 @@ export class FnsService {
         select: { promotionId: true },
       });
     } catch (error) {
-      // Если поле promotionId не существует, продолжаем без него
       if (error.message.includes('promotionId')) {
         fnsRequest = null;
       } else {
@@ -248,7 +241,6 @@ export class FnsService {
       if (customerId && cashbackAmount > 0) {
         await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
         
-        // Создаем чек в БД для данной промоакции
         if (fnsRequest?.promotionId) {
           await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount);
         }
@@ -336,7 +328,6 @@ export class FnsService {
         },
       });
     } catch (error) {
-      // Если поле promotionId не существует, считаем общий лимит
       if (error.message.includes('promotionId')) {
         currentCount = await this.prisma.fnsRequest.count({
           where: {
@@ -351,7 +342,7 @@ export class FnsService {
       }
     }
     
-    const limit = 1000; // Лимит из документации ФНС
+    const limit = 1000; 
     
     return {
       allowed: currentCount < limit,
@@ -378,7 +369,6 @@ export class FnsService {
       this.logger.log(`Created receipt record with ID: ${receipt.id}`);
     } catch (error) {
       this.logger.error('Error creating receipt record:', error);
-      // Не прерываем процесс, если не удалось создать запись чека
     }
   }
 
@@ -395,14 +385,12 @@ export class FnsService {
     };
 
     try {
-      // Получаем публичный IP сервера
       const response = await require('axios').get('http://ipecho.net/plain', { timeout: 5000 });
       result.ip = response.data.trim();
     } catch (error) {
       this.logger.warn('Could not determine server IP:', error.message);
     }
 
-    // Тест аутентификации
     try {
       this.logger.log('Testing FNS authentication...');
       const token = await this.fnsAuthService.refreshToken();
@@ -425,7 +413,6 @@ export class FnsService {
       return result;
     }
 
-    // Тест отправки сообщения (если аутентификация прошла успешно)
     try {
       this.logger.log('Testing FNS service endpoints...');
       const testQrData = {
@@ -481,7 +468,6 @@ export class FnsService {
     };
 
     try {
-      // Шаг 1: Получение токена
       result.steps['step1_auth'] = { status: 'running', message: 'Getting auth token...' };
       const token = await this.fnsAuthService.getValidToken();
       result.steps['step1_auth'] = { 
@@ -490,7 +476,6 @@ export class FnsService {
         tokenLength: token.length 
       };
 
-      // Шаг 2: Отправка запроса
       result.steps['step2_send'] = { status: 'running', message: 'Sending request to FNS...' };
       const messageId = await this.fnsCheckService.sendCheckRequest(qrData, token);
       result.steps['step2_send'] = { 
@@ -499,7 +484,6 @@ export class FnsService {
         messageId 
       };
 
-      // Шаг 3: Получение результата
       result.steps['step3_result'] = { status: 'running', message: 'Waiting for result...' };
       const checkResult = await this.fnsCheckService.waitForResult(messageId, token, 5);
       result.steps['step3_result'] = { 

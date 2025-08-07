@@ -163,7 +163,6 @@ export class FnsCashbackService {
   }
 
   async checkCashbackLimitsForPromotion(customerId: number, receiptData: any, promotionId: string): Promise<boolean> {
-    // Проверяем, получал ли пользователь кешбек за этот чек в данной сети
     let existingRequest;
     try {
       existingRequest = await this.prisma.fnsRequest.findFirst({
@@ -192,7 +191,6 @@ export class FnsCashbackService {
         },
       });
     } catch (error) {
-      // Если поле promotionId не существует, проверяем без него
       if (error.message.includes('promotionId')) {
         existingRequest = await this.prisma.fnsRequest.findFirst({
           where: {
@@ -228,7 +226,6 @@ export class FnsCashbackService {
       return false;
     }
 
-    // Проверяем дополнительные лимиты (например, максимум чеков в день)
     const dailyLimit = await this.checkDailyCashbackLimit(customerId, promotionId);
     if (!dailyLimit) {
       this.logger.warn(`Customer ${customerId} exceeded daily cashback limit in promotion ${promotionId}`);
@@ -259,7 +256,6 @@ export class FnsCashbackService {
         },
       });
     } catch (error) {
-      // Если поле promotionId не существует, считаем общий лимит
       if (error.message.includes('promotionId')) {
         todaysRequests = await this.prisma.fnsRequest.count({
           where: {
@@ -276,7 +272,6 @@ export class FnsCashbackService {
       }
     }
     
-    // Максимум 10 чеков с кешбеком в день на сеть
     const DAILY_LIMIT = 10;
     return todaysRequests < DAILY_LIMIT;
   }

@@ -2,11 +2,6 @@ const axios = require('axios');
 const FnsAuthTest = require('./fns-auth.test');
 const FnsCheckTest = require('./fns-check.test');
 
-/**
- * Интеграционный тест ФНС API
- * Проверяет полный цикл работы включая GetMessages, FileLinks и различные сценарии
- */
-
 class FnsIntegrationTest {
   constructor() {
     this.authTest = new FnsAuthTest();
@@ -38,7 +33,6 @@ class FnsIntegrationTest {
     try {
       const token = await this.getValidToken();
       
-      // Сначала отправляем несколько сообщений
       const testReceipts = [
         {
           fn: '9287440300090728',
@@ -60,7 +54,6 @@ class FnsIntegrationTest {
       
       const messageIds = [];
       
-      // Отправляем сообщения
       for (let i = 0; i < testReceipts.length; i++) {
         console.log(`📤 Отправка сообщения ${i + 1}/${testReceipts.length}...`);
         const sendResult = await this.checkTest.testSendMessage(testReceipts[i]);
@@ -72,7 +65,6 @@ class FnsIntegrationTest {
           console.log(`❌ Ошибка отправки сообщения ${i + 1}: ${sendResult.error}`);
         }
         
-        // Пауза между отправками для избежания rate limiting
         await this.sleep(1000);
       }
       
@@ -80,7 +72,6 @@ class FnsIntegrationTest {
         return { success: false, error: 'No messages sent successfully' };
       }
       
-      // Теперь используем GetMessages для получения всех сообщений сразу
       console.log(`\n📥 Получение ${messageIds.length} сообщений через GetMessages...`);
       
       const getMessagesResult = await this.makeGetMessagesRequest(messageIds, token);
@@ -101,7 +92,6 @@ class FnsIntegrationTest {
   }
 
   async makeGetMessagesRequest(messageIds, token) {
-    // Формируем SOAP запрос для GetMessages
     const expressionsXml = messageIds.map(messageId => `
       <ns:Expressions>
         <ns:MessageId>${messageId}</ns:MessageId>
@@ -158,7 +148,6 @@ class FnsIntegrationTest {
   parseGetMessagesResponse(xmlResponse) {
     const messages = [];
     
-    // Ищем все блоки Messages в ответе
     const messageBlocks = xmlResponse.match(/<Messages>.*?<\/Messages>/gs);
     
     if (messageBlocks) {
@@ -188,7 +177,6 @@ class FnsIntegrationTest {
     try {
       const token = await this.getValidToken();
       
-      // Используем один и тот же MessageId дважды
       const duplicateMessageId = '12345678-1234-1234-1234-123456789012';
       const messageIds = [duplicateMessageId, duplicateMessageId];
       
@@ -217,7 +205,6 @@ class FnsIntegrationTest {
     try {
       const token = await this.getValidToken();
       
-      // Создаем слишком много MessageId (согласно документации лимит есть)
       const manyMessageIds = [];
       for (let i = 0; i < 50; i++) {
         manyMessageIds.push(`12345678-1234-1234-1234-12345678901${i.toString().padStart(1, '0')}`);
@@ -249,7 +236,6 @@ class FnsIntegrationTest {
     try {
       const token = await this.getValidToken();
       
-      // Пример SOAP запроса с FileLinks согласно документации
       const soapRequestWithFiles = `
         <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
           <soap-env:Body>
@@ -307,7 +293,6 @@ class FnsIntegrationTest {
     try {
       const token = await this.getValidToken();
       
-      // Отправляем запрос с недопустимыми символами в FileLinks
       const soapRequestWithInvalidFiles = `
         <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
           <soap-env:Body>
@@ -370,29 +355,25 @@ class FnsIntegrationTest {
     };
     
     try {
-      // 1. Аутентификация
       console.log('1️⃣ Аутентификация...');
       results.auth = await this.authTest.testAuthentication();
       if (!results.auth.success) {
         return { success: false, stage: 'auth', results };
       }
       
-      // 2. Отправка сообщения
       console.log('2️⃣ Отправка сообщения...');
       results.sendMessage = await this.checkTest.testSendMessage();
       if (!results.sendMessage.success) {
         return { success: false, stage: 'sendMessage', results };
       }
       
-      // 3. Получение одного сообщения
       console.log('3️⃣ Получение сообщения...');
-      await this.sleep(2000); // Ждем обработки
+      await this.sleep(2000); 
       results.getMessage = await this.checkTest.testGetMessage(results.sendMessage.messageId);
       if (!results.getMessage.success) {
         return { success: false, stage: 'getMessage', results };
       }
       
-      // 4. Получение множественных сообщений
       console.log('4️⃣ Тест GetMessages...');
       results.getMessages = await this.makeGetMessagesRequest(
         [results.sendMessage.messageId], 
@@ -442,7 +423,6 @@ class FnsIntegrationTest {
   }
 }
 
-// Запуск тестов если файл запущен напрямую
 if (require.main === module) {
   const test = new FnsIntegrationTest();
   test.runAllTests()

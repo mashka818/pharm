@@ -1,11 +1,6 @@
 const axios = require('axios');
 const FnsAuthTest = require('./fns-auth.test');
 
-/**
- * Тест обработки ошибок ФНС API
- * Проверяет различные сценарии ошибок согласно документации ФНС
- */
-
 class FnsErrorsTest {
   constructor() {
     this.authTest = new FnsAuthTest();
@@ -19,7 +14,6 @@ class FnsErrorsTest {
     console.log('💡 Этот тест проверяет обработку ошибки "Доступ к сервису для переданного IP, запрещен"');
     
     try {
-      // Пытаемся аутентифицироваться
       const result = await this.authTest.testAuthentication();
       
       if (!result.success && result.error.includes('IP')) {
@@ -127,7 +121,6 @@ class FnsErrorsTest {
         headers: {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:SendMessageRequest',
-          // Намеренно не передаем FNS-OpenApi-Token
         },
         timeout: 30000,
       });
@@ -153,7 +146,6 @@ class FnsErrorsTest {
   async testInvalidXmlStructure() {
     console.log('\n🔧 === Тест невалидной XML структуры ===');
     
-    // Получаем валидный токен для теста
     let token;
     try {
       const authResult = await this.authTest.testAuthentication();
@@ -217,7 +209,6 @@ class FnsErrorsTest {
   async testMessageNotFound() {
     console.log('\n🔍 === Тест MessageNotFound ===');
     
-    // Получаем валидный токен для теста
     let token;
     try {
       const authResult = await this.authTest.testAuthentication();
@@ -275,7 +266,6 @@ class FnsErrorsTest {
     console.log('\n⏱️ === Тест Rate Limiting ===');
     console.log('💡 Симулируем множественные запросы для проверки лимитов');
     
-    // Получаем валидный токен для теста
     let token;
     try {
       const authResult = await this.authTest.testAuthentication();
@@ -303,7 +293,7 @@ class FnsErrorsTest {
 
     let rateLimitHit = false;
     let requestCount = 0;
-    const maxRequests = 5; // Ограничиваем количество попыток
+    const maxRequests = 5; 
 
     console.log('🔄 Отправка множественных запросов...');
     
@@ -339,7 +329,6 @@ class FnsErrorsTest {
         }
       }
       
-      // Небольшая пауза между запросами
       await this.sleep(100);
     }
     
@@ -356,7 +345,6 @@ class FnsErrorsTest {
     console.log('\n🔧 === Тест внутренней ошибки сервера ===');
     console.log('💡 Этот тест проверяет обработку внутренних ошибок ФНС');
     
-    // Получаем валидный токен
     let token;
     try {
       const authResult = await this.authTest.testAuthentication();
@@ -370,7 +358,6 @@ class FnsErrorsTest {
       return { success: true, skipped: true, reason: 'Authentication unavailable' };
     }
     
-    // Пытаемся отправить потенциально проблемный запрос
     const potentiallyProblematicRequest = `
       <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
         <soap-env:Body>
@@ -452,7 +439,6 @@ class FnsErrorsTest {
   }
 }
 
-// Запуск тестов если файл запущен напрямую
 if (require.main === module) {
   const test = new FnsErrorsTest();
   test.runAllTests()

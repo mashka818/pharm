@@ -11,7 +11,6 @@ export class FnsAuthService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getValidToken(): Promise<string> {
-    // УБРАНО: mock/dev режим. Всегда используем реальный токен
     if (this.isTokenValid()) {
       return this.cachedToken.token;
     }
@@ -22,7 +21,6 @@ export class FnsAuthService {
   async refreshToken(): Promise<string> {
     this.logger.log('Refreshing FNS token');
 
-    // УБРАНО: mock/dev режим. Всегда используем реальный токен
     try {
       const token = await this.makeAuthRequest();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -38,7 +36,6 @@ export class FnsAuthService {
       return token;
     } catch (error) {
       this.logger.error('Error refreshing FNS token:', error);
-      // Оставляем только реальную обработку ошибок
       throw new Error('Failed to refresh FNS token');
     }
   }
@@ -55,7 +52,6 @@ export class FnsAuthService {
   }
 
   private async makeAuthRequest(): Promise<string> {
-    // Используем корректный токен из данных сервиса
     const masterToken = process.env.FTX_TOKEN || 'LFgDIA4yBZjW6h174iwVDcRoDHhjmpuFLtAX3kHPT9ctgggajk36aLJIzIcs2kZyKvTqLy4rSEHi7KOgY0fuNHKPbGCekDg9qjpin04K4ZyfolqtwDBZ6f6Isja3MMWe';
     const authServiceUrl = process.env.FTX_API_URL || 'https://openapi.nalog.ru:8090';
     const authEndpoint = `${authServiceUrl}/open-api/AuthService/0.1`;
@@ -98,7 +94,6 @@ export class FnsAuthService {
     } catch (error) {
       this.logger.error('SOAP auth request failed:', error.response?.data || error.message);
       
-      // Специальная обработка ошибки доступа по IP
       if (error.response?.data?.includes('Доступ к сервису для переданного IP, запрещен')) {
         this.logger.error('IP address is not whitelisted in FNS. Please contact FNS support to add your server IP to the whitelist.');
         throw new Error('IP address not whitelisted in FNS. Contact support to add IP: ' + (process.env.PROD_SERVER_IP || 'current server IP'));
@@ -123,7 +118,6 @@ export class FnsAuthService {
   }
 
   private generateMockToken(): string {
-    // Генерируем mock токен для разработки
     const mockToken = `dev_mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.logger.debug(`Generated mock token: ${mockToken.substring(0, 20)}...`);
     return mockToken;

@@ -9,7 +9,6 @@ export class FnsCheckService {
   async sendCheckRequest(qrData: any, token: string): Promise<string> {
     this.logger.log(`Sending check request for QR data: ${JSON.stringify(qrData)}`);
 
-    // Mock режим для разработки
     if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
       return this.generateMockMessageId(qrData);
     }
@@ -22,7 +21,6 @@ export class FnsCheckService {
     } catch (error) {
       this.logger.error('Error sending check request:', error);
       
-      // Если IP блокировка в разработке, предлагаем dev режим
       if (error.message.includes('IP address not whitelisted') && this.isDevelopment) {
         this.logger.warn('Consider setting FNS_DEV_MODE=true for development with mock responses');
       }
@@ -34,7 +32,6 @@ export class FnsCheckService {
   async getCheckResult(messageId: string, token: string): Promise<any> {
     this.logger.log(`Getting check result for message ID: ${messageId}`);
 
-    // Mock режим для разработки
     if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
       return this.generateMockResult(messageId);
     }
@@ -84,7 +81,6 @@ export class FnsCheckService {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:SendMessageRequest',
           'FNS-OpenApi-Token': token,
-          // Убираем FNS-OpenApi-UserToken так как он deprecated согласно документации
         },
         timeout: 30000,
       });
@@ -98,7 +94,6 @@ export class FnsCheckService {
         throw new Error('Rate limiting error from FNS');
       }
       
-      // Специальная обработка ошибок доступа по IP
       if (error.response?.data?.includes('Доступ к сервису для переданного IP, запрещен')) {
         this.logger.error('IP address not whitelisted for FNS KktService');
         throw new Error('IP address not whitelisted for FNS KktService');
@@ -135,7 +130,6 @@ export class FnsCheckService {
           'Content-Type': 'text/xml;charset=UTF-8',
           'SOAPAction': 'urn:GetMessageRequest',
           'FNS-OpenApi-Token': token,
-          // Убираем FNS-OpenApi-UserToken так как он deprecated согласно документации
         },
         timeout: 30000,
       });
@@ -235,10 +229,8 @@ export class FnsCheckService {
   }
 
   async waitForResult(messageId: string, token: string, maxAttempts: number = 10): Promise<any> {
-    // В mock режиме сразу возвращаем результат
     if (this.isDevelopment && process.env.FNS_DEV_MODE === 'true') {
       this.logger.warn(`Mock mode: returning immediate result for ${messageId}`);
-      // Небольшая задержка для имитации обработки
       await new Promise(resolve => setTimeout(resolve, 1000));
       return this.generateMockResult(messageId);
     }
@@ -293,9 +285,7 @@ export class FnsCheckService {
   }
 
   private generateMockResult(messageId: string): any {
-    // Симулируем разные типы ответов для тестирования
     const scenarios = [
-      // Успешный валидный чек
       {
         processingStatus: 'COMPLETED',
         status: 'success',
@@ -312,7 +302,6 @@ export class FnsCheckService {
           ]
         }
       },
-      // Невалидный чек
       {
         processingStatus: 'COMPLETED',
         status: 'rejected',
@@ -321,7 +310,6 @@ export class FnsCheckService {
         isFake: true,
         receiptData: null
       },
-      // Чек возврата
       {
         processingStatus: 'COMPLETED',
         status: 'rejected',
@@ -332,7 +320,6 @@ export class FnsCheckService {
       }
     ];
 
-    // Выбираем сценарий на основе messageId (для предсказуемости)
     const scenarioIndex = Math.abs(messageId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % scenarios.length;
     const result = scenarios[scenarioIndex];
     

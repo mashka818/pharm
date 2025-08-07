@@ -1,11 +1,6 @@
 const axios = require('axios');
 const FnsAuthTest = require('./fns-auth.test');
 
-/**
- * Тест сервиса проверки чеков ФНС
- * Проверяет отправку сообщений (SendMessage) и получение результатов (GetMessage)
- */
-
 class FnsCheckTest {
   constructor() {
     this.authTest = new FnsAuthTest();
@@ -13,12 +8,11 @@ class FnsCheckTest {
     this.serviceUrl = `${this.baseUrl}/open-api/ais3/KktService/0.1`;
     this.cachedToken = null;
     
-    // Тестовые данные из документации ФНС
     this.testReceiptData = {
       fn: '9287440300090728',
       fd: '77133', 
       fp: '1482926127',
-      sum: 240000, // 2400 рублей в копейках
+      sum: 240000, 
       date: '2019-04-09T16:38:00',
       typeOperation: 1
     };
@@ -101,7 +95,6 @@ class FnsCheckTest {
         console.log(`📊 HTTP статус: ${error.response.status}`);
         console.log(`📄 Тело ошибки:`, error.response.data);
         
-        // Обработка специфичных ошибок согласно документации
         if (error.response.status === 429) {
           console.log('🚫 Превышен лимит запросов (Rate Limiting)');
         } else if (error.response.data && typeof error.response.data === 'string') {
@@ -191,7 +184,6 @@ class FnsCheckTest {
   async testFullCycle(receiptData = this.testReceiptData) {
     console.log('\n🔄 === Тест полного цикла проверки чека ===');
     
-    // Отправляем сообщение
     const sendResult = await this.testSendMessage(receiptData);
     if (!sendResult.success) {
       return { success: false, error: 'Failed to send message', details: sendResult };
@@ -201,11 +193,10 @@ class FnsCheckTest {
     const maxRetries = 5;
     let retryCount = 0;
     
-    // Ожидаем обработки с повторными запросами
     console.log('\n⏳ Ожидание обработки сообщения...');
     
     while (retryCount < maxRetries) {
-      await this.sleep(2000); // Ждем 2 секунды между запросами
+      await this.sleep(2000); 
       
       const getResult = await this.testGetMessage(messageId);
       
@@ -282,7 +273,6 @@ class FnsCheckTest {
       }
     }
     
-    // Извлекаем данные сообщения если статус COMPLETED
     let message = null;
     if (processingStatus === 'COMPLETED') {
       const messageMatch = xmlResponse.match(/<Message>(.*?)<\/Message>/s);
@@ -319,7 +309,6 @@ class FnsCheckTest {
   }
 }
 
-// Запуск тестов если файл запущен напрямую
 if (require.main === module) {
   const test = new FnsCheckTest();
   test.runAllTests()

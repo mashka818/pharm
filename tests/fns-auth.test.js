@@ -1,10 +1,5 @@
 const axios = require('axios');
 
-/**
- * Тест сервиса аутентификации ФНС
- * Проверяет получение временного токена по мастер-токену
- */
-
 class FnsAuthTest {
   constructor() {
     this.masterToken = process.env.FTX_TOKEN || 'LFgDIA4yBZjW6h174iwVDcRoDHhjmpuFLtAX3kHPT9ctgggajk36aLJIzIcs2kZyKvTqLy4rSEHi7KOgY0fuNHKPbGCekDg9qjpin04K4ZyfolqtwDBZ6f6Isja3MMWe';
@@ -54,7 +49,6 @@ class FnsAuthTest {
       console.log(`🎯 Получен токен: ${token.substring(0, 32)}...`);
       console.log(`⏰ Время истечения: ${expiryInfo}`);
       
-      // Проверяем валидность токена
       if (token && token.length > 10) {
         console.log('✅ УСПЕХ: Токен получен успешно');
         return { success: true, token, expiryInfo };
@@ -71,7 +65,6 @@ class FnsAuthTest {
         console.log(`📋 Заголовки ошибки:`, error.response.headers);
         console.log(`📄 Тело ошибки:`, error.response.data);
         
-        // Специальная обработка ошибок по документации
         if (error.response.data && typeof error.response.data === 'string') {
           if (error.response.data.includes('Доступ к сервису для переданного IP, запрещен')) {
             console.log('🚫 IP адрес сервера не добавлен в белый список ФНС');
@@ -94,7 +87,6 @@ class FnsAuthTest {
   }
 
   parseAuthResponse(xmlResponse) {
-    // Поиск токена в различных форматах согласно документации
     const tokenPatterns = [
       /<ns2:Token>([^<]+)<\/ns2:Token>/,
       /<Token>([^<]+)<\/Token>/,
@@ -191,7 +183,6 @@ class FnsAuthTest {
   }
 }
 
-// Запуск тестов если файл запущен напрямую
 if (require.main === module) {
   const test = new FnsAuthTest();
   test.runAllTests()
