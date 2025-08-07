@@ -90,16 +90,25 @@ export class AuthCustomerService {
   }
 
   async loginCustomer(loginCustomerDto: LoginCustomerDto): Promise<LoginResponseDto> {
+    console.log('🔍 Поиск пользователя:', { email: loginCustomerDto.email, promotionId: loginCustomerDto.promotionId });
+    
     const customer = await this.customersService.getCustomerByEmailAndPromotionId(
       loginCustomerDto.email,
       loginCustomerDto.promotionId,
     );
+    
     if (!customer) {
+      console.log('❌ Пользователь не найден');
       throw new NotFoundException('Customer not found');
     }
+    
+    console.log('✅ Пользователь найден:', { id: customer.id, email: customer.email });
+    
     const isMatch = await bcrypt.compare(loginCustomerDto.password, customer.password);
+    console.log('🔐 Проверка пароля:', { isMatch });
 
     if (!isMatch) {
+      console.log('❌ Неверный пароль');
       throw new UnauthorizedException();
     }
 
@@ -111,7 +120,16 @@ export class AuthCustomerService {
       name: customer.name,
       surname: customer.surname
     };
+    
+    console.log('🎫 Создание payload для токена:', payload);
 
-    return this.authService.getTokensByPayload(payload);
+    try {
+      const tokens = await this.authService.getTokensByPayload(payload);
+      console.log('✅ Токены успешно созданы');
+      return tokens;
+    } catch (error) {
+      console.log('❌ Ошибка при создании токенов:', error);
+      throw error;
+    }
   }
 }

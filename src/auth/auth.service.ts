@@ -26,11 +26,25 @@ export class AuthService {
   }
 
   async getTokensByPayload(payload: Record<string, any>) {
+    console.log('🔧 Создание токенов с payload:', payload);
+    
     const enhancedPayload = { ...payload, timestamp: Date.now() };
-    return {
-      access: await this.jwtService.signAsync(enhancedPayload),
-      refresh: await this.jwtService.signAsync(enhancedPayload, { expiresIn: '7d' }),
-    };
+    console.log('🔧 Enhanced payload:', enhancedPayload);
+    
+    try {
+      const accessToken = await this.jwtService.signAsync(enhancedPayload);
+      const refreshToken = await this.jwtService.signAsync(enhancedPayload, { expiresIn: '7d' });
+      
+      console.log('✅ Токены созданы успешно');
+      
+      return {
+        access: accessToken,
+        refresh: refreshToken,
+      };
+    } catch (error) {
+      console.log('❌ Ошибка при создании токенов:', error);
+      throw error;
+    }
   }
 
   async validateAdmin(username: string, password: string): Promise<AdminDto> {
