@@ -10,6 +10,8 @@ import { AuthCustomerService } from './auth-customer.service';
 import { LoginCustomerDto } from 'src/customers/dto/login-customer.dto';
 import { LoginCustomerDto as AuthLoginCustomerDto } from './dto/login-customer.dto';
 import { Public } from 'src/decorators/public.decorator';
+import { RegistrationResponseDto } from './dto/registration-response.dto';
+import { ConfirmationResponseDto } from './dto/confirmation-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -44,12 +46,38 @@ export class AuthController {
   }
 
   @ApiBody({ type: CreateCustomerDto })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Пользователь успешно зарегистрирован',
+    type: RegistrationResponseDto 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Неверные данные или пользователь уже существует' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Промоакция не найдена' 
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Ошибка отправки email' 
+  })
   @Public()
   @Post('reg')
   regCustomer(@Body() CreateCustomerDto: CreateCustomerDto) {
     return this.authCustomerService.regCustomer(CreateCustomerDto);
   }
 
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Пользователь успешно подтвержден',
+    type: ConfirmationResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Пользователь не найден' 
+  })
   @Public()
   @Post('confirm/:confirmationToken')
   confirm(@Param('confirmationToken') confirmationToken: string) {

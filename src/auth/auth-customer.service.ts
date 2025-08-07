@@ -15,6 +15,8 @@ import { CustomersService } from 'src/customers/customers.service';
 import { LoginCustomerDto } from 'src/customers/dto/login-customer.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { AuthService } from './auth.service';
+import { RegistrationResponseDto } from './dto/registration-response.dto';
+import { ConfirmationResponseDto } from './dto/confirmation-response.dto';
 
 @Injectable()
 export class AuthCustomerService {
@@ -26,7 +28,7 @@ export class AuthCustomerService {
     private readonly authService: AuthService,
   ) {}
 
-  async regCustomer(createCustomerDto: CreateCustomerDto) {
+  async regCustomer(createCustomerDto: CreateCustomerDto): Promise<RegistrationResponseDto> {
     const hashedPassword = await bcrypt.hash(createCustomerDto.password, +process.env.SALT);
 
     const promotion = await this.promotionsService.findOneByPromotionId(
@@ -61,10 +63,14 @@ export class AuthCustomerService {
       throw new InternalServerErrorException('Failed to send confirmation email.');
     }
 
-    return 'Registration request has been created';
+    return {
+      message: 'Registration request has been created',
+      confirmationToken: createdCustomer.confirmationToken,
+      confirmationLink,
+    };
   }
 
-  async confirmCustomer(confirmationToken: string) {
+  async confirmCustomer(confirmationToken: string): Promise<ConfirmationResponseDto> {
     const unconfirmed =
       await this.unconfirmedCustomersService.getUnconfirmedByConfirmationToken(confirmationToken);
 
@@ -76,6 +82,11 @@ export class AuthCustomerService {
     await this.unconfirmedCustomersService.remove(id);
 
     await this.customersService.create(customer);
+
+    return {
+      message: 'User successfully confirmed',
+      email: customer.email,
+    };
   }
 
   async loginCustomer(loginCustomerDto: LoginCustomerDto): Promise<LoginResponseDto> {
