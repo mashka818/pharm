@@ -20,6 +20,7 @@ import { ReceiptsModule } from './receipts/receipts.module';
 import { WithdrawalVariantsModule } from './withdrawal-variants/withdrawal-variants.module';
 import { SearchModule } from './search/search.module';
 import { FnsModule } from './fns/fns.module';
+import { CashbackModule } from './cashback/cashback.module';
 import { TenantMiddleware } from './auth/middleware/tenant.middleware';
 
 @Module({
@@ -45,6 +46,7 @@ import { TenantMiddleware } from './auth/middleware/tenant.middleware';
     WithdrawalVariantsModule,
     SearchModule,
     FnsModule,
+    CashbackModule,
   ],
   providers: [PrismaService, TenantMiddleware],
 })

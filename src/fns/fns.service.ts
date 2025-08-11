@@ -4,6 +4,7 @@ import { FnsAuthService } from './fns-auth.service';
 import { FnsCheckService } from './fns-check.service';
 import { FnsQueueService } from './fns-queue.service';
 import { FnsCashbackService } from './fns-cashback.service';
+import { CashbackService } from '../cashback/cashback.service';
 import { PrismaService } from '../prisma.service';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
@@ -18,6 +19,7 @@ export class FnsService {
     private readonly fnsCheckService: FnsCheckService,
     private readonly fnsQueueService: FnsQueueService,
     private readonly fnsCashbackService: FnsCashbackService,
+    private readonly cashbackService: CashbackService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -236,17 +238,52 @@ export class FnsService {
     }
     
     if (status === 'success') {
-      const cashbackAmount = await this.fnsCashbackService.calculateCashback(
-        result.receiptData, 
-        customerId, 
-        fnsRequest?.promotionId
-      );
+      let cashbackAmount = 0;
+      let cashbackId = null;
       
-      if (customerId && cashbackAmount > 0) {
-        await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
-        
-        if (fnsRequest?.promotionId) {
-          await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount);
+      if (customerId && fnsRequest?.promotionId) {
+        try {
+          // Используем новую систему кэшбека
+          const calculationResult = await this.cashbackService.calculateCashback(
+            result.receiptData, 
+            customerId, 
+            fnsRequest.promotionId
+          );
+          
+          if (calculationResult.totalCashback > 0) {
+            const receiptRecord = await this.createReceiptRecord(
+              result.receiptData, 
+              customerId, 
+              fnsRequest.promotionId, 
+              calculationResult.totalCashback
+            );
+            
+            const awardResult = await this.cashbackService.awardCashback(
+              customerId,
+              requestId,
+              receiptRecord?.id || null,
+              fnsRequest.promotionId,
+              calculationResult
+            );
+            
+            cashbackAmount = awardResult.amount;
+            cashbackId = awardResult.cashbackId;
+            
+            this.logger.log(`Awarded cashback ${cashbackAmount} to customer ${customerId} (cashback ID: ${cashbackId})`);
+          }
+        } catch (error) {
+          this.logger.error(`Error awarding cashback for request ${requestId}:`, error);
+          // Fallback to old system if new system fails
+          cashbackAmount = await this.fnsCashbackService.calculateCashback(
+            result.receiptData, 
+            customerId, 
+            fnsRequest.promotionId
+          );
+          
+          if (cashbackAmount > 0) {
+            await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
+            await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount);
+          }
         }
       }
       

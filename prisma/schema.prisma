@@ -16,6 +16,9 @@ model Admin {
   updatedAt DateTime  @updatedAt
   role      AdminRole
 
+  // Связь с отменёнными кэшбеками
+  cancelledCashbacks Cashback[]
+
   @@map("admins")
 }
 
@@ -44,6 +47,7 @@ model Promotion {
   offers      Offer[]
   fnsRequests FnsRequest[]
   receipts    Receipt[]
+  cashbacks   Cashback[]    // Новая связь
 
   @@map("promotions")
 }
@@ -76,6 +80,7 @@ model Product {
   offers          ProductOffer[]
   promotionId     String
   receiptProducts ReceiptProduct[]
+  cashbackItems   CashbackItem[]   // Новая связь
 
   @@map("products")
 }
@@ -109,6 +114,7 @@ model Offer {
   promotion       Promotion        @relation(fields: [promotionId], references: [promotionId])
   promotionId     String
   receiptProducts ReceiptProduct[]
+  cashbackItems   CashbackItem[]   // Новая связь
 
   @@map("offers")
 }
@@ -189,6 +195,7 @@ model Customer {
   role                  CustomerRole
   fnsRequests           FnsRequest[]
   receipts              Receipt[]
+  cashbacks             Cashback[]          // Новая связь
 
   @@unique([email, promotionId])
   @@map("customers")
@@ -252,6 +259,7 @@ model Receipt {
   customerId          Int?
   customer            Customer?             @relation(fields: [customerId], references: [id])
   fnsRequests         FnsRequest[]
+  cashbacks           Cashback[]            // Новая связь
 
   @@map("receipts")
 }
@@ -305,6 +313,8 @@ model FnsRequest {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
+  cashbacks       Cashback[]    // Новая связь
+  
   @@map("fns_requests")
 }
 
@@ -323,4 +333,65 @@ model FnsDailyLimit {
   count     Int      @default(0)
   
   @@map("fns_daily_limits")
+}
+
+// Новая модель для истории кэшбека
+model Cashback {
+  id            Int              @id @default(autoincrement())
+  customerId    Int
+  customer      Customer         @relation(fields: [customerId], references: [id])
+  receiptId     Int?
+  receipt       Receipt?         @relation(fields: [receiptId], references: [id])
+  fnsRequestId  String?
+  fnsRequest    FnsRequest?      @relation(fields: [fnsRequestId], references: [id])
+  promotionId   String
+  promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
+  
+  amount        Int              // Общая сумма кэшбека
+  status        CashbackStatus   @default(active)
+  reason        String?          // Причина отмены, если status = cancelled
+  
+  // Админ, который отменил кэшбек
+  cancelledBy   Int?
+  cancelledByAdmin Admin?        @relation(fields: [cancelledBy], references: [id])
+  cancelledAt   DateTime?
+  
+  // Детализация кэшбека по товарам/акциям
+  items         CashbackItem[]
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  @@map("cashbacks")
+}
+
+// Детализация кэшбека по товарам
+model CashbackItem {
+  id            Int       @id @default(autoincrement())
+  cashbackId    Int
+  cashback      Cashback  @relation(fields: [cashbackId], references: [id], onDelete: Cascade)
+  
+  productId     Int?
+  product       Product?  @relation(fields: [productId], references: [id])
+  offerId       Int?
+  offer         Offer?    @relation(fields: [offerId], references: [id])
+  
+  // Данные о товаре из чека
+  productName   String
+  productSku    String?
+  quantity      Int
+  itemPrice     Int       // Цена за единицу в копейках
+  totalPrice    Int       // Общая стоимость позиции в копейках
+  
+  // Расчёт кэшбека
+  cashbackAmount Int      // Сумма кэшбека за эту позицию
+  cashbackType   CashbackType
+  cashbackRate   Int?     // Процент или фиксированная сумма
+  
+  @@map("cashback_items")
+}
+
+enum CashbackStatus {
+  active
+  cancelled
 }
