@@ -7,18 +7,27 @@ export class FnsCashbackService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  async calculateCashbackWithBreakdown(receiptData: any, customerId?: number, promotionId?: string): Promise<{ totalCashback: number; items: Array<{ item: any; offer: any | null; cashbackAmount: number }> }> {
+    this.logger.log(`Calculating cashback (with breakdown) for receipt: ${JSON.stringify(receiptData)}, promotion: ${promotionId}`);
+
+    try {
+      const activeOffers = await this.getActiveOffers(promotionId);
+      const receiptItems = this.parseReceiptItems(receiptData);
+      const cashbackItems = await this.matchItemsWithOffers(receiptItems, activeOffers);
+      const totalCashback = this.calculateTotalCashback(cashbackItems);
+
+      return { totalCashback, items: cashbackItems };
+    } catch (error) {
+      this.logger.error('Error calculating cashback with breakdown:', error);
+      return { totalCashback: 0, items: [] };
+    }
+  }
+
   async calculateCashback(receiptData: any, customerId?: number, promotionId?: string): Promise<number> {
     this.logger.log(`Calculating cashback for receipt: ${JSON.stringify(receiptData)}, promotion: ${promotionId}`);
 
     try {
-      const activeOffers = await this.getActiveOffers(promotionId);
-      
-      const receiptItems = this.parseReceiptItems(receiptData);
-      
-      const cashbackItems = await this.matchItemsWithOffers(receiptItems, activeOffers);
-      
-      const totalCashback = this.calculateTotalCashback(cashbackItems);
-      
+      const { totalCashback } = await this.calculateCashbackWithBreakdown(receiptData, customerId, promotionId);
       this.logger.log(`Calculated cashback: ${totalCashback}`);
       return totalCashback;
     } catch (error) {
@@ -69,7 +78,7 @@ export class FnsCashbackService {
   }
 
   private async matchItemsWithOffers(receiptItems: any[], activeOffers: any[]): Promise<any[]> {
-    const cashbackItems = [];
+    const cashbackItems = [] as Array<{ item: any; offer: any | null; cashbackAmount: number }>;
 
     for (const item of receiptItems) {
       const matchingOffer = activeOffers.find(offer => 
@@ -79,16 +88,55 @@ export class FnsCashbackService {
       );
 
       if (matchingOffer) {
+        const passedCondition = this.checkOfferCondition(item, matchingOffer);
+        if (!passedCondition) {
+          continue;
+        }
         const cashbackAmount = this.calculateItemCashback(item, matchingOffer);
-        cashbackItems.push({
-          item,
-          offer: matchingOffer,
-          cashbackAmount,
-        });
+        cashbackItems.push({ item, offer: matchingOffer, cashbackAmount });
+      } else {
+        // fallback cashback by product settings (fixCashback + cashbackType)
+        const product = await this.findProductByReceiptItem(item);
+        if (product && product.fixCashback && product.cashbackType) {
+          const fallbackAmount = product.cashbackType === 'amount'
+            ? product.fixCashback
+            : Math.round((item.total * product.fixCashback) / 100);
+          cashbackItems.push({ item, offer: null, cashbackAmount: fallbackAmount });
+        }
       }
     }
 
     return cashbackItems;
+  }
+
+  private checkOfferCondition(item: any, offer: any): boolean {
+    if (!offer.condition) return true;
+
+    const condition = offer.condition;
+    const value = condition.variant === 'amount' ? item.quantity : item.total;
+
+    if (condition.type === 'from') {
+      return value >= (condition.from_value ?? 0);
+    }
+    if (condition.type === 'to') {
+      return value <= (condition.to_value ?? Number.MAX_SAFE_INTEGER);
+    }
+    if (condition.type === 'from_to') {
+      return value >= (condition.from_value ?? 0) && value <= (condition.to_value ?? Number.MAX_SAFE_INTEGER);
+    }
+
+    return true;
+  }
+
+  private async findProductByReceiptItem(item: any) {
+    return this.prisma.product.findFirst({
+      where: {
+        OR: [
+          { sku: item.sku || '' },
+          { name: { contains: item.name || '', mode: 'insensitive' } },
+        ],
+      },
+    });
   }
 
   private matchProduct(receiptItem: any, product: any): boolean {

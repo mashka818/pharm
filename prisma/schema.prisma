@@ -15,6 +15,7 @@ model Admin {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   role      AdminRole
+  canceledCashbacks Cashback[]
 
   @@map("admins")
 }
@@ -44,6 +45,7 @@ model Promotion {
   offers      Offer[]
   fnsRequests FnsRequest[]
   receipts    Receipt[]
+  cashbacks   Cashback[]
 
   @@map("promotions")
 }
@@ -189,6 +191,7 @@ model Customer {
   role                  CustomerRole
   fnsRequests           FnsRequest[]
   receipts              Receipt[]
+  cashbacks             Cashback[]
 
   @@unique([email, promotionId])
   @@map("customers")
@@ -252,6 +255,7 @@ model Receipt {
   customerId          Int?
   customer            Customer?             @relation(fields: [customerId], references: [id])
   fnsRequests         FnsRequest[]
+  cashbacks           Cashback[]
 
   @@map("receipts")
 }
@@ -271,10 +275,37 @@ model ReceiptProduct {
   offer     Offer?  @relation(fields: [offerId], references: [id])
   offerId   Int?
   cashback  Int
+  quantity  Int?
+  price     Int?
+  total     Int?
   Receipt   Receipt @relation(fields: [receiptId], references: [id])
   receiptId Int
 
   @@map("receipt_products")
+}
+
+model Cashback {
+  id                Int        @id @default(autoincrement())
+  customer          Customer   @relation(fields: [customerId], references: [id])
+  customerId        Int
+  promotion         Promotion  @relation(fields: [promotionId], references: [promotionId])
+  promotionId       String
+  receipt           Receipt    @relation(fields: [receiptId], references: [id])
+  receiptId         Int
+  amount            Int
+  status            CashbackStatus @default(awarded)
+  reason            String?
+  createdAt         DateTime   @default(now())
+  canceledAt        DateTime?
+  canceledByAdmin   Admin?     @relation(fields: [canceledByAdminId], references: [id])
+  canceledByAdminId Int?
+
+  @@map("cashbacks")
+}
+
+enum CashbackStatus {
+  awarded
+  canceled
 }
 
 model FnsRequest {

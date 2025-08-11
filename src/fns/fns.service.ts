@@ -236,23 +236,24 @@ export class FnsService {
     }
     
     if (status === 'success') {
-      const cashbackAmount = await this.fnsCashbackService.calculateCashback(
+      const { totalCashback, items: cashbackItems } = await this.fnsCashbackService.calculateCashbackWithBreakdown(
         result.receiptData, 
         customerId, 
         fnsRequest?.promotionId
       );
       
-      if (customerId && cashbackAmount > 0) {
-        await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
+      if (customerId && totalCashback > 0) {
+        await this.fnsCashbackService.awardCashbackToCustomer(customerId, totalCashback);
         
         if (fnsRequest?.promotionId) {
-          await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount);
+          const receiptId = await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, totalCashback, cashbackItems);
+          await this.createCashbackRecord(receiptId, customerId, fnsRequest.promotionId, totalCashback);
         }
       }
       
       await this.fnsQueueService.updateRequestStatus(requestId, 'success', {
-        cashbackAmount,
-        cashbackAwarded: cashbackAmount > 0,
+        cashbackAmount: totalCashback,
+        cashbackAwarded: totalCashback > 0,
         fnsResponse: result,
       });
     } else if (status === 'rejected') {
@@ -293,6 +294,48 @@ export class FnsService {
         },
       },
     });
+  }
+
+  async getTodayCashbacks(promotionId?: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const where: any = {
+      createdAt: { gte: today },
+      status: 'awarded',
+    };
+
+    if (promotionId) where.promotionId = promotionId;
+
+    return this.prisma.cashback.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: { select: { id: true, name: true, email: true } },
+        receipt: true,
+        promotion: { select: { promotionId: true, name: true } },
+      },
+    });
+  }
+
+  async cancelCashback(cashbackId: number, adminId?: number) {
+    const cb = await this.prisma.cashback.findUnique({ where: { id: cashbackId } });
+    if (!cb || cb.status !== 'awarded') {
+      throw new BadRequestException('Cashback not found or already canceled');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.cashback.update({
+        where: { id: cashbackId },
+        data: { status: 'canceled', canceledAt: new Date(), canceledByAdminId: adminId ?? null },
+      }),
+      this.prisma.customer.update({
+        where: { id: cb.customerId },
+        data: { bonuses: { decrement: cb.amount } },
+      }),
+    ]);
+
+    return { success: true };
   }
 
   async getCustomerCashbackHistory(customerId: number) {
@@ -355,7 +398,13 @@ export class FnsService {
     };
   }
 
-  private async createReceiptRecord(receiptData: any, customerId: number, promotionId: string, cashback: number): Promise<void> {
+  private async createReceiptRecord(
+    receiptData: any,
+    customerId: number,
+    promotionId: string,
+    cashback: number,
+    cashbackItems: Array<{ item: any; offer: any | null; cashbackAmount: number }>,
+  ): Promise<number> {
     try {
       const receipt = await this.prisma.receipt.create({
         data: {
@@ -370,9 +419,66 @@ export class FnsService {
         },
       });
 
+      // persist items (link only if product resolved)
+      const items = (receiptData.items || []).map((i: any) => ({
+        name: i.name,
+        sku: i.sku || i.nds || undefined,
+        quantity: parseInt(i.quantity || i.qnty || 1),
+        price: parseInt(i.price || i.priceSum || i.sum || 0),
+        total: parseInt(i.sum || 0),
+      }));
+
+      for (const item of items) {
+        const product = await this.prisma.product.findFirst({
+          where: {
+            OR: [
+              item.sku ? { sku: item.sku } : undefined,
+              item.name ? { name: { contains: item.name, mode: 'insensitive' } } : undefined,
+            ].filter(Boolean) as any,
+          },
+          select: { id: true },
+        });
+
+        if (!product) continue;
+
+        const matched = cashbackItems.find(
+          (ci) => ci.item.name === item.name && Math.round(ci.item.total) === Math.round(item.total)
+        );
+
+        await this.prisma.receiptProduct.create({
+          data: {
+            cashback: matched?.cashbackAmount ?? 0,
+            quantity: item.quantity,
+            price: item.price,
+            total: item.total,
+            product: { connect: { id: product.id } },
+            offer: matched?.offer ? { connect: { id: matched.offer.id } } : undefined,
+            Receipt: { connect: { id: receipt.id } },
+          },
+        });
+      }
+
       this.logger.log(`Created receipt record with ID: ${receipt.id}`);
+      return receipt.id;
     } catch (error) {
       this.logger.error('Error creating receipt record:', error);
+      return 0;
+    }
+  }
+
+  private async createCashbackRecord(receiptId: number, customerId: number, promotionId: string, amount: number) {
+    try {
+      await this.prisma.cashback.create({
+        data: {
+          receiptId,
+          customerId,
+          promotionId,
+          amount,
+          status: 'awarded',
+        },
+      });
+    } catch (error) {
+      this.logger.error('Error creating cashback record:', error);
     }
   }
 

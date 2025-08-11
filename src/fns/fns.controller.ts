@@ -8,7 +8,9 @@ import {
   Request,
   Headers,
   BadRequestException,
-  Logger
+  Logger,
+  Delete,
+  Query
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { FnsService } from './fns.service';
@@ -16,6 +18,7 @@ import { ScanQrCodeDto } from './dto/scan-qr-code.dto';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
 @ApiTags('FNS Integration')
 @Controller('fns')
@@ -167,5 +170,19 @@ export class FnsController {
     };
   }
 
+  @Get('admin/cashbacks/today')
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Список начислений за сегодня' })
+  @ApiResponse({ status: 200, description: 'Список' })
+  async getTodayCashbacks(@Query('promotionId') promotionId?: string) {
+    return this.fnsService.getTodayCashbacks(promotionId);
+  }
 
+  @Delete('admin/cashbacks/:id')
+  @UseGuards(AdminGuard)
+  @ApiOperation({ summary: 'Отменить начисление кешбека' })
+  @ApiResponse({ status: 200, description: 'Отменено' })
+  async cancelCashback(@Param('id') id: string, @Request() req: any) {
+    return this.fnsService.cancelCashback(+id, req.user?.id);
+  }
 } 
