@@ -66,8 +66,8 @@ export class ReceiptsController {
   @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @ApiBody({ type: UpdateReceiptDto })
   @Put(':id')
-  update(@Body() updateReceiptDto: UpdateReceiptDto) {
-    return this.receiptsService.update(updateReceiptDto);
+  update(@Param('id') id: string, @Body() updateReceiptDto: UpdateReceiptDto) {
+    return this.receiptsService.update({ ...updateReceiptDto, id: +id });
   }
 
   @ApiOperation({ summary: 'Удалить чек', description: 'Удаляет чек по идентификатору.' })

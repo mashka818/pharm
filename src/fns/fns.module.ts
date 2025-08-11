@@ -8,9 +8,10 @@ import { FnsCashbackService } from './fns-cashback.service';
 import { CashbackModule } from '../cashback/cashback.module';
 import { PrismaService } from '../prisma.service';
 import { AuthModule } from '../auth/auth.module';
+import { ReceiptsModule } from '../receipts/receipts.module';
 
 @Module({
-  imports: [AuthModule, CashbackModule],
+  imports: [AuthModule, CashbackModule, ReceiptsModule],
   controllers: [FnsController],
   providers: [
     FnsService,

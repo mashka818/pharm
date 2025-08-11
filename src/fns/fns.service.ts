@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma.service';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
 import { ScanQrCodeDto } from './dto/scan-qr-code.dto';
+import { ReceiptsService } from '../receipts/receipts.service';
 
 @Injectable()
 export class FnsService {
@@ -21,6 +22,7 @@ export class FnsService {
     private readonly fnsCashbackService: FnsCashbackService,
     private readonly cashbackService: CashbackService,
     private readonly prisma: PrismaService,
+    private readonly receiptsService: ReceiptsService,
   ) {}
 
   async processScanQrCode(qrData: ScanQrCodeDto, customerId: number, promotionId: string, host: string) {
@@ -227,7 +229,7 @@ export class FnsService {
     try {
       fnsRequest = await this.prisma.fnsRequest.findUnique({
         where: { id: requestId },
-        select: { promotionId: true },
+        select: { promotionId: true, receiptId: true },
       });
     } catch (error) {
       if (error.message.includes('promotionId')) {
@@ -240,49 +242,75 @@ export class FnsService {
     if (status === 'success') {
       let cashbackAmount = 0;
       let cashbackId = null;
+      let createdReceipt: any = null;
+
+      // Если чек уже создан ранее для этого запроса, переиспользуем
+      if (fnsRequest?.receiptId) {
+        createdReceipt = await this.prisma.receipt.findUnique({
+          where: { id: fnsRequest.receiptId },
+        });
+      }
       
-      if (customerId && fnsRequest?.promotionId) {
+      if (!createdReceipt && customerId && fnsRequest?.promotionId) {
         try {
-          // Используем новую систему кэшбека
           const calculationResult = await this.cashbackService.calculateCashback(
             result.receiptData, 
             customerId, 
             fnsRequest.promotionId
           );
           
+          // Создаем чек через модуль чеков, с детализацией
+          createdReceipt = await this.receiptsService.createFromFns(
+            result.receiptData,
+            customerId,
+            fnsRequest.promotionId,
+            calculationResult,
+          );
+
+          // Привязываем чек к FnsRequest
+          await this.prisma.fnsRequest.update({
+            where: { id: requestId },
+            data: { receiptId: createdReceipt.id },
+          });
+          
           if (calculationResult.totalCashback > 0) {
-            const receiptRecord = await this.createReceiptRecord(
-              result.receiptData, 
-              customerId, 
-              fnsRequest.promotionId, 
-              calculationResult.totalCashback
-            );
-            
             const awardResult = await this.cashbackService.awardCashback(
               customerId,
               requestId,
-              receiptRecord?.id || null,
+              createdReceipt?.id || null,
               fnsRequest.promotionId,
               calculationResult
             );
             
             cashbackAmount = awardResult.amount;
             cashbackId = awardResult.cashbackId;
-            
             this.logger.log(`Awarded cashback ${cashbackAmount} to customer ${customerId} (cashback ID: ${cashbackId})`);
           }
         } catch (error) {
-          this.logger.error(`Error awarding cashback for request ${requestId}:`, error);
-          // Fallback to old system if new system fails
+          this.logger.error(`Error processing receipt/cashback for request ${requestId}:`, error);
+          // Fallback к старой системе, без продуктов
           cashbackAmount = await this.fnsCashbackService.calculateCashback(
             result.receiptData, 
             customerId, 
-            fnsRequest.promotionId
+            fnsRequest?.promotionId
           );
           
           if (cashbackAmount > 0) {
             await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
-            await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount);
+            // Минимальная запись чека на фоллбэке
+            const fallbackReceipt = await this.prisma.receipt.create({
+              data: {
+                date: new Date(result.receiptData.dateTime || result.receiptData.date),
+                number: parseInt(result.receiptData.fiscalDocumentNumber || result.receiptData.fd),
+                price: parseInt(result.receiptData.totalSum || result.receiptData.sum),
+                cashback: cashbackAmount,
+                status: 'success',
+                address: result.receiptData.retailPlace || 'Неизвестно',
+                promotionId: fnsRequest?.promotionId,
+                customerId,
+              },
+            });
+            await this.prisma.fnsRequest.update({ where: { id: requestId }, data: { receiptId: fallbackReceipt.id } });
           }
         }
       }

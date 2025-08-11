@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateReceiptDto } from './dto/create-receipt.dto';
 import { UpdateReceiptDto } from './dto/update-receipt.dto';
 import { PrismaService } from '../prisma.service';
+import type { CashbackCalculationResult } from '../cashback/cashback.service';
 
 @Injectable()
 export class ReceiptsService {
@@ -387,5 +388,64 @@ export class ReceiptsService {
       this.logger.error('Error creating test receipt for cashback:', error);
       throw error;
     }
+  }
+
+  async createFromFns(
+    receiptData: any,
+    customerId: number,
+    promotionId: string,
+    calculationResult: CashbackCalculationResult,
+  ) {
+    this.logger.log('Creating receipt from FNS data');
+
+    return await this.prisma.$transaction(async (tx) => {
+      const receipt = await tx.receipt.create({
+        data: {
+          date: new Date(receiptData.dateTime || receiptData.date),
+          number: parseInt(receiptData.fiscalDocumentNumber || receiptData.fd),
+          price: parseInt(receiptData.totalSum || receiptData.sum),
+          cashback: calculationResult.totalCashback,
+          status: 'success',
+          address: receiptData.retailPlace || 'Неизвестно',
+          promotionId,
+          customerId,
+        },
+      });
+
+      const itemsToCreate = (calculationResult.items || [])
+        .filter((item) => item.productId)
+        .map((item) => ({
+          productId: item.productId!,
+          offerId: item.offerId ?? null,
+          cashback: item.cashbackAmount,
+          receiptId: receipt.id,
+        }));
+
+      if (itemsToCreate.length > 0) {
+        // No createMany in Prisma per-record return; use Promise.all for clarity
+        await Promise.all(
+          itemsToCreate.map((data) => tx.receiptProduct.create({ data }))
+        );
+      }
+
+      const createdReceipt = await tx.receipt.findUnique({
+        where: { id: receipt.id },
+        include: {
+          products: {
+            include: {
+              product: true,
+              offer: true,
+            },
+          },
+          customer: {
+            select: { id: true, name: true, surname: true, email: true },
+          },
+          promotion: { select: { promotionId: true, name: true } },
+        },
+      });
+
+      this.logger.log(`Receipt from FNS created: ${receipt.id}`);
+      return createdReceipt;
+    });
   }
 }
