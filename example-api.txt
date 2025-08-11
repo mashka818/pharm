@@ -1,0 +1,1085 @@
+ПРИМЕРЫ ЗАПРОСОВ (ПОТРЕБИТЕЛЬ)
+CЕРВИС АВТОРИЗАЦИИ, ПОЛОЖИТЕЛЬНЫЙ СЦЕНАРИЙ	3
+CЕРВИС АВТОРИЗАЦИИ, ОШИБКА ИЗ-ЗА НЕ СВОЕВРЕМЕННОЙ ОБРАБОТКИ ЗАПРОСА ПОСТАВЩИКОМ	4
+СЕРВИС АВТОРИЗАЦИИ, НЕВАЛИДНЫЙ ЗАПРОС	5
+СЕРВИС АВТОРИЗАЦИИ. ОТКАЗ В ДОСТУПЕ.	6
+СЕРВИС АВТОРИЗАЦИИ. ОШИБКА НА СТОРОНЕ СЕРВИСА	7
+СЕРВИС. ЗАПРОС SENDMESSAGEREQUEST. ПОЛОЖИТЕЛЬНЫЙ СЦЕНАРИЙ	8
+СЕРВИС. ЗАПРОС GETMESSAGEREQUEST. ПОЛОЖИТЕЛЬНЫЙ СЦЕНАРИЙ (PROCESSING)	9
+СЕРВИС. ЗАПРОС GETMESSAGEREQUEST. ПОЛОЖИТЕЛЬНЫЙ СЦЕНАРИЙ (COMPLETED)	10
+СЕРВИС. ЗАПРОС: GETMESSAGEREQUEST. НЕ НАЙДЕНО СООБЩЕНИЕ ПО ПЕРЕДАННОМУ MESSAGEID ИЛИ ВРЕМЯ ПЕРЕДАЧИ ОТВЕТА ИСТЕКЛО	11
+СЕРВИС. ЗАПРОС SENDMESSAGEREQUEST. НЕВАЛИДНЫЙ ЗАПРОС	12
+СЕРВИС. ЗАПРОСЫ: SENDMESSAGEREQUEST, GETMESSAGEREQUEST, GETMESSAGESREQUEST.  НА ПРИМЕРЕ ЗАПРОСА SENDMESSAGEREQUEST. ОТКАЗ В ДОСТУПЕ ПО IP КЛИЕНТА	13
+СЕРВИС. ЗАПРОСЫ SENDMESSAGEREQUEST, GETMESSAGEREQUEST, GETMESSAGESREQUEST. ОТКАЗ В ДОСТУПЕ ПО ЗНАЧЕНИЮ ЗАГОЛОВКА FNS-OPENAPI-TOKEN НА ПРИМЕРЕ ЗАПРОСА SENDMESSAGEREQUEST	14
+СЕРВИС. ЗАПРОСЫ: SENDMESSAGEREQUEST, GETMESSAGEREQUEST.  НА ПРИМЕРЕ ЗАПРОСА SENDMESSAGEREQUEST.	15
+ОТКАЗ В ДОСТУПЕ ЕСЛИ НЕ ПЕРЕДАЛИ ПРОВЕРЯЕМЫЕ ЗАГОЛОВКИ	15
+СЕРВИС. ЗАПРОС SENDMESSAGEREQUEST. ПРЕВЫШЕН ОБЩИЙ ДНЕВНОЙ ЛИМИТ ЗАПРОСОВ, ПРИЛОЖЕНИЕМ	16
+СЕРВИС. ЗАПРОС SENDMESSAGEREQUEST. ПРЕВЫШЕН ЛИМИТ ЗАПРОСОВ МЕТОДА, ВЫЗЫВАЕМОГО СЕРВИСА ПО ЗНАЧЕНИЮ ЗАГОЛОВКА - FNS-OPENAPI-USERTOKEN (DEPRECATED)	17
+СЕРВИС. ЗАПРОС SENDMESSAGEREQUEST. ОТКАЗ В ДОСТУПЕ К ВЫЗЫВАЕМОМУ МЕТОДУ	18
+СЕРВИС. ЗАПРОС GETMESSAGESREQUEST. ПОЛОЖИТЕЛЬНЫЙ СЦЕНАРИЙ (PROCESSING)	19
+СЕРВИС . ЗАПРОС GETMESSAGESREQUEST. ПОЛОЖИТЕЛЬНЫЙ СЦЕНАРИЙ (COMPLETED)	21
+СЕРВИВ. ЗАПРОС GETMESSAGESREQUEST. ПРЕВЫШЕНИЕ МАКСИМАЛЬНОГО КОЛИЧЕСТВА ЭЛЕМЕНТОВ EXPRESSIONS В СПИСКЕ GETMESSAGESREQUEST	23
+СЕРВИС. ЗАПРОС GETMESSAGESREQUEST. ПОВТОРЯЮЩИЕСЯ ЗНАЧЕНИЯ MESSAGEID В СПИСКЕ GETMESSAGESREQUEST	25
+СЕРВИС. ЗАПРОС: GETMESSAGESREQUEST. НЕ НАЙДЕНО СООБЩЕНИЕ ПО ПЕРЕДАННОМУ MESSAGEID ИЛИ ВРЕМЯ ПЕРЕДАЧИ ОТВЕТА ИСТЕКЛО	27
+СЕРВИС. ОТРИЦАТЕЛЬНЫЙ СЦЕНАРИЙ. ЗАПРОС: GETMESSAGEREQUEST. ПРЕВЫШЕНО КОЛИЧЕСТВО ЗАПРОСОВ МЕТОДА GETMESSAGE ПО УНИКАЛЬНОМУ MESSAGEID. ПОВТОРИТЕ ЗАПРОС ПОЗЖЕ.	29
+СЕРВИС. ОТРИЦАТЕЛЬНЫЙ СЦЕНАРИЙ. ЗАПРОС: GETMESSAGESREQUEST. ПРЕВЫШЕНО КОЛИЧЕСТВО ЗАПРОСОВ МЕТОДА GETMESSAGES. ПОВТОРИТЕ ЗАПРОС ПОЗЖЕ.	31
+СЕРВИС. ОТРИЦАТЕЛЬНЫЙ СЦЕНАРИЙ. ПРИМЕР ПЕРЕДАЧИ В ЗАПРОСЕ SENDMESSAGEREQUEST, НЕ ДОПУСТИМОГО КОЛИЧЕСТВА ССЫЛОК НА ФАЙЛЫ.	33
+СЕРВИС. ОТРИЦАТЕЛЬНЫЙ СЦЕНАРИЙ. ПРИМЕР ПЕРЕДАЧИ В ЗАПРОСЕ SENDMESSAGEREQUEST ССЫЛКИ НА ФАЙЛ С НЕ ДОПУСТИМЫМИ СИМВОЛАМИ (‘?’, ‘|’)	34
+СЕРВИС. ПОЛОЖИТЕЛЬНЫЙ СЦЕНАРИЙ ПЕРЕДАЧИ ССЫЛКИ НА ФАЙЛ В ЗАПРОСЕ SENDMESSAGEREQUEST	36
+СЕРВИС. ОШИБКИ НА СТОРОНЕ СЕРВИСА	37
+ 
+Cервис авторизации, положительный сценарий
+Request:
+POST https://localhost:8090/open-api/AuthService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+Content-Length: 727
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:Message>
+            <tns:AuthRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/AuthService/types/1.0">
+               <tns:AuthAppInfo>
+               <tns:MasterToken>jsnZEEh8ZVLDmh6Z8SOtvEYWVfmj2k4McREK2qbnZBviIrlR1EdKZgnIMWtDm59yb8J2Ei3sxxumvH0mZtF84K7SvUXundgQixI5oOOmVhu9YJAuC3J6kfMFFvj5qiwe</tns:MasterToken>
+               </tns:AuthAppInfo>
+            </tns:AuthRequest>
+         </ns:Message>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response:
+HTTP/1.1 200 OK
+Date: Thu, 21 Jan 2021 10:52:12 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><GetMessageResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0"><Message><AuthResponse xmlns:ns3="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageProviderService/types/1.0" xmlns:ns2="urn://x-artefacts-gnivc-ru/ais3/kkt/AuthService/types/1.0" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns="urn://x-artefacts-gnivc-ru/ais3/kkt/AuthService/types/1.0"><ns2:Result><ns2:Token>c499717f309949d2b8719bf3040efd96</ns2:Token><ns2:ExpireTime>2021-01-21T14:52:13.202+03:00</ns2:ExpireTime></ns2:Result></AuthResponse></Message></GetMessageResponse></soap:Body></soap:Envelope> 
+Cервис авторизации, ошибка из-за не своевременной обработки запроса Поставщиком
+Request:
+POST https://localhost:8090/open-api/AuthService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+Content-Length: 727
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:Message>
+            <tns:AuthRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/AuthService/types/1.0">
+               <tns:AuthAppInfo>
+               <tns:MasterToken>jsnZEEh8ZVLDmh6Z8SOtvEYWVfmj2k4McREK2qbnZBviIrlR1EdKZgnIMWtDm59yb8J2Ei3sxxumvH0mZtF84K7SvUXundgQixI5oOOmVhu9YJAuC3J6kfMFFvj5qiwe</tns:MasterToken>
+               </tns:AuthAppInfo>
+            </tns:AuthRequest>
+         </ns:Message>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 10:54:44 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Произошел timeout ожидания ответа</faultstring>      </soap:Fault></soap:Body></soap:Envelope> 
+Сервис авторизации, невалидный запрос
+Request:
+POST https://localhost:8090/open-api/AuthService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+Content-Length: 743
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:Message>
+         <test>
+            <tns:AuthRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/AuthService/types/1.0">
+               <tns:AuthAppInfo>
+               <tns:MasterToken>jsnZEEh8ZVLDmh6Z8SOtvEYWVfmj2k4McREK2qbnZBviIrlR1EdKZgnIMWtDm59yb8J2Ei3sxxumvH0mZtF84K7SvUXundgQixI5oOOmVhu9YJAuC3J6kfMFFvj5qiwe</tns:MasterToken>
+               </tns:AuthAppInfo>
+            </tns:AuthRequest>
+         </ns:Message>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 10:57:40 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Client</faultcode><faultstring>Unmarshalling Error: cvc-complex-type.2.4.a: Invalid content was found starting with element 'test'. One of '{WC[##other:"urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0"]}' is expected. </faultstring></soap:Fault></soap:Body></soap:Envelope>
+ 
+Сервис авторизации. Отказ в доступе.
+Request:
+POST https://localhost:8090/open-api/AuthService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+Content-Length: 727
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:Message>
+            <tns:AuthRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/AuthService/types/1.0">
+               <tns:AuthAppInfo>
+               <tns:MasterToken>jsnZEEh8ZVLDmh6Z8SOtvEYWVfmj2k4McREK2qbnZBviIrlR1EdKZgnIMWtDm59yb8J2Ei3sxxumvH0mZtF84K7SvUXundgQixI5oOOmVhu9YJAuC3J6kfMFFvj5qiwe</tns:MasterToken>
+               </tns:AuthAppInfo>
+            </tns:AuthRequest>
+         </ns:Message>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 10:59:34 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Доступ к сервису для переданного IP, запрещен</faultstring></soap:Fault> </soap:Body></soap:Envelope> 
+Сервис авторизации. Ошибка на стороне сервиса 
+Request:
+POST https://localhost:8090/open-api/AuthService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+Content-Length: 727
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:Message>
+            <tns:AuthRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/AuthService/types/1.0">
+               <tns:AuthAppInfo>
+               <tns:MasterToken>jsnZEEh8ZVLDmh6Z8SOtvEYWVfmj2k4McREK2qbnZBviIrlR1EdKZgnIMWtDm59yb8J2Ei3sxxumvH0mZtF84K7SvUXundgQixI5oOOmVhu9YJAuC3J6kfMFFvj5qiwe</tns:MasterToken>
+               </tns:AuthAppInfo>
+            </tns:AuthRequest>
+         </ns:Message>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+Reponse:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 11:07:41 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"> <soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Произошла внутренняя ошибка 00c5b2ae-45b2-475d-9b49-9c9a88e53b97. При повторении ошибки обратитесь в службу технической поддержки.</faultstring></soap:Fault></soap:Body></soap:Envelope> 
+Сервис. Запрос SendMessageRequest. Положительный сценарий
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 773
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+ <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+	<soap-env:Body>
+		<ns0:SendMessageRequest xmlns:ns0="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+			<ns0:Message>
+				<tns:GetTicketRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/KktTicketService/types/1.0">
+	<tns:GetTicketInfo>
+	<tns:Sum>2400</tns:Sum>
+		<tns:Date>2019-04-09T16:38:00</tns:Date>
+		<tns:Fn>9287440300090728</tns:Fn>
+		<tns:TypeOperation>1</tns:TypeOperation>
+		<tns:FiscalDocumentId>77133</tns:FiscalDocumentId>
+		<tns:FiscalSign>1482926127</tns:FiscalSign>
+		<tns:RawData>true</tns:RawData>
+		</tns:GetTicketInfo>
+	</tns:GetTicketRequest>
+			</ns0:Message>
+		</ns0:SendMessageRequest>
+	</soap-env:Body>
+</soap-env:Envelope>
+Response:
+HTTP/1.1 200 OK
+Date: Thu, 21 Jan 2021 11:21:40 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+ <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body><SendMessageResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"><MessageId>d28f1970-1e8d-4fe4-8a39-8aab0af7885e</MessageId></SendMessageResponse></soap:Body></soap:Envelope> 
+Сервис. Запрос GetMessageRequest. Положительный сценарий (Processing)
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 392
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:MessageId>22cf901c-0ca8-4c01-befc-99f30bc005f0</ns:MessageId>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response:
+HTTP/1.1 200 OK
+Date: Thu, 21 Jan 2021 11:24:28 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><GetMessageResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"><ProcessingStatus>PROCESSING</ProcessingStatus></GetMessageResponse></soap:Body></soap:Envelope> 
+Сервис. Запрос GetMessageRequest. Положительный сценарий (COMPLETED)
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 392
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:MessageId>352398b9-9bec-45cf-942e-92f45ae512b5</ns:MessageId>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+Response:
+HTTP/1.1 200 OK
+Date: Wed, 20 Jan 2021 11:15:07 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body><GetMessageResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+<ProcessingStatus>COMPLETED</ProcessingStatus><Message><GetTicketResponse xmlns:ns3="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageProviderService/types/1.0" xmlns:ns2="urn://x-artefacts-gnivc-ru/ais3/kkt/KktTicketService/types/1.0" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns="urn://x-artefacts-gnivc-ru/ais3/kkt/KktTicketService/types/1.0">
+<ns2:Result><ns2:Code>200</ns2:Code><ns2:Ticket>{"id":3474433105673519104,"ofdId":"ofd9"}}</ns2:Ticket>             </ns2:Result></GetTicketResponse></Message></GetMessageResponse></soap:Body></soap:Envelope>
+Сервис. Запрос: GetMessageRequest. Не найдено сообщение по переданному MessageId или время передачи ответа истекло
+Request:
+POST http://10.250.219.67:8091/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+FNS-OpenApi-Token: 2f87a10d1cb24a49818dcf3e95f0c7ad
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 392
+Host: 10.250.219.67:8091
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:MessageId>5c3da8d7-cb72-4c4f-b4b8-aafbd1d1ef46</ns:MessageId>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 11:33:36 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>По переданному MessageId: 5c3da8d7-cb72-4c4f-b4b8-aafbd1d1ef46 сооб	щение не найдено</faultstring>
+         <detail>
+            <MessageNotFoundFault xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"/>
+         </detail>
+      </soap:Fault>
+   </soap:Body></soap:Envelope> 
+Сервис. Запрос SendMessageRequest. Невалидный запрос
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: Token1
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 664
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:SendMessageRequest>
+         <ns:Message>
+<ns:ExampleRequest xmlns:ns="urn://x-artefacts-example-ru/services/message-exchange/types/1.1" 
+xmlns:ns1="urn://x-artefacts-example-ru/services/message-exchange/types/basic/1.1">
+         <ns:NodeID>Test123</ns:NodeID>
+         <Timestamp Id="1">123</Timestamp>
+<ns2:isValid>123</ns2:isValid>
+      </ns:ExampleRequest>
+         </ns:Message>
+      </ns:SendMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 11:40:55 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Client</faultcode><faultstring>Unmarshalling Error: Unexpected close tag &lt;/tns:GetTicketInfo>; expected &lt;/tns:GetTicketInfo1>.
+ at [row,col {unknown-source}]: [14,21] </faultstring></soap:Fault></soap:Body></soap:Envelope>
+ 
+Сервис. Запросы: SendMessageRequest, GetMessageRequest, GetMessagesRequest.  На примере запроса SendMessageRequest. Отказ в доступе по IP клиента
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: Token1
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 664
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:SendMessageRequest>
+         <ns:Message>
+<ns:ExampleRequest xmlns:ns="urn://x-artefacts-example-ru/services/message-exchange/types/1.1" 
+xmlns:ns1="urn://x-artefacts-example-ru/services/message-exchange/types/basic/1.1">
+         <ns:NodeID>Test123</ns:NodeID>
+         <ns1:Timestamp Id="1">123</ns1:Timestamp>
+      </ns:ExampleRequest>
+         </ns:Message>
+      </ns:SendMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 11:41:44 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>Доступ к сервису для переданного IP, запрещен</faultstring>
+      </soap:Fault></soap:Body></soap:Envelope> 
+Сервис. Запросы SendMessageRequest, GetMessageRequest, GetMessagesRequest. Отказ в доступе по значению заголовка FNS-OpenApi-Token на примере запроса SendMessageRequest
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: Token2
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 664
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/><soapenv:Body><ns:SendMessageRequest><ns:Message><ns:ExampleRequest xmlns:ns="urn://x-artefacts-example-ru/services/message-exchange/types/1.1" 
+xmlns:ns1="urn://x-artefacts-example-ru/services/message-exchange/types/basic/1.1">
+         <ns:NodeID>Test123</ns:NodeID><ns1:Timestamp Id="1">123</ns1:Timestamp></ns:ExampleRequest></ns:Message></ns:SendMessageRequest></soapenv:Body></soapenv:Envelope>
+Response
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 11:42:32 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>Доступ к сервису для token запрещен</faultstring>
+         <detail>
+            <AuthenticationFault xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"/>
+         </detail>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+ 
+
+Сервис. Запросы: SendMessageRequest, GetMessageRequest.  На примере запроса SendMessageRequest.  
+Отказ в доступе если не передали проверяемые заголовки
+Проверяется наличие заголовков в запросе: FNS-OpenApi-Token, FNS-OpenApi-UserTokenю.
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 664
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"><soapenv:Header/><soapenv:Body><ns:SendMessageRequest><ns:Message><ns:ExampleRequest xmlns:ns="urn://x-artefacts-example-ru/services/message-exchange/types/1.1" 
+xmlns:ns1="urn://x-artefacts-example-ru/services/message-exchange/types/basic/1.1"><ns:NodeID>Test123</ns:NodeID><ns1:Timestamp Id="1">123</ns1:Timestamp></ns:ExampleRequest></ns:Message></ns:SendMessageRequest></soapenv:Body></soapenv:Envelope>
+Response
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 11:45:01 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault><faultcode>soap:Server</faultcode><faultstring>Не удалось обнаружить требуемые заголовки в переданном запросе</faultstring></soap:Fault></soap:Body></soap:Envelope>
+ 
+Сервис. Запрос SendMessageRequest. Превышен общий дневной лимит запросов, приложением
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 664
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:SendMessageRequest>
+         <ns:Message>
+<ns:ExampleRequest xmlns:ns="urn://x-artefacts-example-ru/services/message-exchange/types/1.1" 
+xmlns:ns1="urn://x-artefacts-example-ru/services/message-exchange/types/basic/1.1">
+         <ns:NodeID>Test123</ns:NodeID>
+         <ns1:Timestamp Id="1">123</ns1:Timestamp>
+      </ns:ExampleRequest>
+         </ns:Message>
+      </ns:SendMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 12:48:41 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+ <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>Превышен общий дневной лимит запросов, приложением TestAppId-1</faultstring>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+TestAppId-1 – appId внешнего приложения. 
+Сервис. Запрос SendMessageRequest. Превышен лимит запросов метода, вызываемого сервиса по значению заголовка - FNS-OpenApi-UserToken (Deprecated)
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 664
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:SendMessageRequest>
+         <ns:Message>
+<ns:ExampleRequest xmlns:ns="urn://x-artefacts-example-ru/services/message-exchange/types/1.1" 
+xmlns:ns1="urn://x-artefacts-example-ru/services/message-exchange/types/basic/1.1">
+         <ns:NodeID>Test123</ns:NodeID>
+         <ns1:Timestamp Id="1">123</ns1:Timestamp>
+      </ns:ExampleRequest>
+         </ns:Message>
+      </ns:SendMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 12:57:04 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+ <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>Превышен лимит запросов метода ExampleRequest </faultstring>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+ 
+Сервис. Запрос SendMessageRequest. Отказ в доступе к вызываемому методу
+Запрос будет отклонен, если для заданного app-id в таблице app_security_setting нет соответствие вызываемому методу в блоке Message.
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: Token1
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 664
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
+xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:SendMessageRequest>
+         <ns:Message>
+<ns:ExampleRequest xmlns:ns="urn://x-artefacts-example-ru/services/message-exchange/types/1.1" 
+xmlns:ns1="urn://x-artefacts-example-ru/services/message-exchange/types/basic/1.1">
+         <ns:NodeID>Test123</ns:NodeID>
+         <ns1:Timestamp Id="1">123</ns1:Timestamp>
+      </ns:ExampleRequest>
+         </ns:Message>
+      </ns:SendMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+Response:
+HTTP/1.1 500 Server Error
+Date: Wed, 03 Oct 2018 19:45:08 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.15.v20160210)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Метод ExampleRequest отсутствует в списке доступа для переданного токена</faultstring></soap:Fault></soap:Body></soap:Envelope> 
+Сервис. Запрос GetMessagesRequest. Положительный сценарий (Processing)
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessagesRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 729
+Host: localhost:8091
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessagesRequest>
+         <!--1 or more repetitions:-->
+         <ns:Expressions>
+            <ns:MessageId>8aceb874-0b44-41bd-a340-6477964bf681</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+          <ns:Expressions>
+            <ns:MessageId>889b5c39-dff4-4420-bf82-488a7275ee6d</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+      </ns:GetMessagesRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+ 
+Response:
+HTTP/1.1 200 OK
+Date: Thu, 21 Jan 2021 13:40:49 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><GetMessagesResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"><Messages><MessageId>889b5c39-dff4-4420-bf82-488a7275ee6d</MessageId><Result><ProcessingStatus>PROCESSING</ProcessingStatus></Result></Messages><Messages><MessageId>8aceb874-0b44-41bd-a340-6477964bf681</MessageId><Result><ProcessingStatus>PROCESSING</ProcessingStatus></Result></Messages></GetMessagesResponse></soap:Body></soap:Envelope>
+ 
+Сервис . Запрос GetMessagesRequest. Положительный сценарий (COMPLETED)
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessagesRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 729
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessagesRequest>
+         <!--1 or more repetitions:-->
+         <ns:Expressions>
+            <ns:MessageId>e18f7a4a-364c-4aaa-9cfd-43b8fcc35273</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+          <ns:Expressions>
+            <ns:MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+      </ns:GetMessagesRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+ 
+Response:
+HTTP/1.1 200 OK
+Date: Thu, 21 Jan 2021 13:50:10 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <GetMessagesResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+         <Messages>
+            <MessageId>e18f7a4a-364c-4aaa-9cfd-43b8fcc35273</MessageId>
+            <Result>
+               <ProcessingStatus>COMPLETED</ProcessingStatus>
+               <Message>
+                  <GetNewlyUnboundTaxpayersResponse xmlns:S="http://schemas.xmlsoap.org/soap/envelope/" xmlns="urn://x-artefacts-gnivc-ru/ais3/SMZ/SmzPartnersIntegrationService/types/1.0">
+                     <HasMore>true</HasMore>
+                  </GetNewlyUnboundTaxpayersResponse>
+               </Message>
+            </Result>
+         </Messages>
+         <Messages>
+            <MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</MessageId>
+            <Result>
+               <ProcessingStatus>COMPLETED</ProcessingStatus>
+               <Message>
+                  <GetNewlyUnboundTaxpayersResponse xmlns:S="http://schemas.xmlsoap.org/soap/envelope/" xmlns="urn://x-artefacts-gnivc-ru/ais3/SMZ/SmzPartnersIntegrationService/types/1.0">
+                     <HasMore>true</HasMore>
+                  </GetNewlyUnboundTaxpayersResponse>
+               </Message>
+            </Result>
+         </Messages>
+      </GetMessagesResponse>
+   </soap:Body>
+</soap:Envelope>
+ 
+Сервив. Запрос GetMessagesRequest. Превышение максимального количества элементов Expressions в списке GetMessagesRequest 
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessagesRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 912
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessagesRequest>
+         <!--1 or more repetitions:-->
+         <ns:Expressions>
+            <ns:MessageId>e18f7a4a-364c-4aaa-9cfd-43b8fcc35273</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+          <ns:Expressions>
+            <ns:MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+         <ns:Expressions>
+            <ns:MessageId>231ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+      </ns:GetMessagesRequest>
+   </soapenv:Body>
+</soapenv:Envelope> 
+
+ 
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 13:56:21 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>В запросе было передано недопустимое количество messageId</faultstring>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+ 
+Сервис. Запрос GetMessagesRequest. Повторяющиеся значения MessageId в списке GetMessagesRequest 
+
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessagesRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 729
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessagesRequest>
+         <!--1 or more repetitions:-->
+         <ns:Expressions>
+            <ns:MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+          <ns:Expressions>
+            <ns:MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+      </ns:GetMessagesRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+ 
+Response:
+HTTP/1.1 500 Server Error
+Date: Fri, 22 Jan 2021 06:06:21 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>В запросе переданы повторяющиеся значения messageId</faultstring>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+ 
+Сервис. Запрос: GetMessagesRequest. Не найдено сообщение по переданному MessageId или время передачи ответа истекло
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessagesRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 729
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessagesRequest>
+         <!--1 or more repetitions:-->
+         <ns:Expressions>
+            <ns:MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+          <ns:Expressions>
+            <ns:MessageId>131ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+      </ns:GetMessagesRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+ 
+Response:
+HTTP/1.1 200 OK
+Date: Fri, 22 Jan 2021 05:59:30 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+ <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <GetMessagesResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+         <Messages>
+            <MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</MessageId>
+            <Fault xsi:type="MessageNotFoundFault" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+               <Message>По переданным параметрам сообщение не найдено</Message>
+            </Fault>
+         </Messages>
+         <Messages>
+            <MessageId>131ec98f-16bf-4d2b-a399-faca7ee93670</MessageId>
+            <Fault xsi:type="MessageNotFoundFault" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+               <Message>По переданным параметрам сообщение не найдено</Message>
+            </Fault>
+         </Messages>
+      </GetMessagesResponse>
+   </soap:Body>
+</soap:Envelope>
+
+ 
+Сервис. Отрицательный сценарий. Запрос: GetMessageRequest. Превышено количество запросов метода GetMessage по уникальному MessageID. Повторите запрос позже.
+Request:
+POST https://localhost:8091/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessageRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 392
+Host: localhost:8091
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessageRequest>
+         <ns:MessageId>34cef1e9-cc5e-4de2-abf3-0089d4d2f7c0</ns:MessageId>
+      </ns:GetMessageRequest>
+   </soapenv:Body>
+</soapenv:Envelope> 
+Response:
+HTTP/1.1 500 Server Error
+Date: Mon, 30 Oct 2023 12:25:43 GMT
+Content-Type: text/xml; charset=UTF-8
+Content-Length: 534
+Server: Jetty(9.2.26.v20180806)
+
+ <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>Превышено количество запросов метода GetMessage по уникальному MessageID. Повторите запрос позже.</faultstring>
+         <detail>
+            <RateLimitingFault xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+               <errorCode>429</errorCode>
+            </RateLimitingFault>
+         </detail>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+ 
+Сервис. Отрицательный сценарий. Запрос: GetMessagesRequest. Превышено количество запросов метода GetMessages. Повторите запрос позже.
+Request:
+POST https://localhost:8091/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:GetMessagesRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 1095
+Host: localhost:8091
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <ns:GetMessagesRequest>
+         <!--1 or more repetitions:-->
+         <ns:Expressions>
+            <ns:MessageId>731ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+          <ns:Expressions>
+            <ns:MessageId>131ec98f-16bf-4d2b-a399-faca7ee93670</ns:MessageId>
+            <ns:UserToken>UserToken1</ns:UserToken>
+         </ns:Expressions>
+      </ns:GetMessagesRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+ 
+Response:
+HTTP/1.1 500 Server Error
+Date: Mon, 30 Oct 2023 12:34:04 GMT
+Content-Type: text/xml; charset=UTF-8
+Content-Length: 497
+Server: Jetty(9.2.26.v20180806)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>Превышено количество запросов метода GetMessages. Повторите запрос позже.</faultstring>
+         <detail>
+            <RateLimitingFault xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+               <errorCode>429</errorCode>
+            </RateLimitingFault>
+         </detail>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+
+
+Сервис. Отрицательный сценарий. Пример передачи в запросе SendMessageRequest, не допустимого количества ссылок на файлы.
+Request:
+POST https://localhost:8090/open-api/ais3/KktService/0.1 HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 702
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+	<soap-env:Body>
+		<ns0:SendMessageRequest xmlns:ns0="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+			<ns0:Message>
+				<ns1:GetNewlyUnboundTaxpayersRequest xmlns:ns1="urn://x-artefacts-gnivc-ru/ais3/SMZ/SmzPartnersIntegrationService/types/1.0">
+					<ns1:From>2019-02-27T20:49:13</ns1:From>
+					<ns1:Limit>100</ns1:Limit>
+					<ns1:Offset>0</ns1:Offset>
+				</ns1:GetNewlyUnboundTaxpayersRequest></ns0:Message>
+			<ns0:FileLinks>test/test2</ns0:FileLinks>
+		</ns0:SendMessageRequest>	</soap-env:Body></soap-env:Envelope>
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 14:10:33 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>Установлено недопустимое количество ссылок на файлы в запросе SendMessageRequest.</faultstring>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+Сервис. Отрицательный сценарий. Пример передачи в запросе SendMessageRequest ссылки на файл с не допустимыми символами (‘?’, ‘|’)
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 657
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+	<soap-env:Body>
+		<ns0:SendMessageRequest xmlns:ns0="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+			<ns0:Message>
+				<ns1:GetNewlyUnboundTaxpayersRequest xmlns:ns1="urn://x-artefacts-gnivc-ru/ais3/SMZ/SmzPartnersIntegrationService/types/1.0">
+					<ns1:From>2019-02-27T20:49:13</ns1:From>
+					<ns1:Limit>100</ns1:Limit>	
+					<ns1:Offset>0</ns1:Offset>
+				</ns1:GetNewlyUnboundTaxpayersRequest>
+			</ns0:Message>
+			<ns0:FileLinks>test/te?st2.txt</ns0:FileLinks>
+
+		</ns0:SendMessageRequest>
+	</soap-env:Body>
+</soap-env:Envelope>
+
+ 
+Response:
+HTTP/1.1 500 Server Error
+Date: Thu, 21 Jan 2021 14:26:30 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+ <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <soap:Fault>
+         <faultcode>soap:Server</faultcode>
+         <faultstring>По переданной ссылке файл не найден</faultstring>
+         <detail>
+            <FileNotFoundFault xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"/>
+         </detail>
+      </soap:Fault>
+   </soap:Body>
+</soap:Envelope>
+
+ 
+Сервис. Положительный сценарий передачи ссылки на файл в запросе SendMessageRequest
+Request:
+POST https://localhost:8090/ais3/smz/SmzIntegrationService HTTP/1.1
+Accept-Encoding: gzip,deflate
+Content-Type: text/xml;charset=UTF-8
+SOAPAction: "urn:SendMessageRequest"
+FNS-OpenApi-Token: 4541
+FNS-OpenApi-UserToken: UserToken1
+Content-Length: 655
+Host: localhost:8090
+Connection: Keep-Alive
+User-Agent: Apache-HttpClient/4.1.1 (java 1.5)
+
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+	<soap-env:Body>
+		<ns0:SendMessageRequest xmlns:ns0="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0">
+			<ns0:Message>
+				<ns1:GetNewlyUnboundTaxpayersRequest xmlns:ns1="urn://x-artefacts-gnivc-ru/ais3/SMZ/SmzPartnersIntegrationService/types/1.0">
+					<ns1:From>2019-02-27T20:49:13</ns1:From>
+					<ns1:Limit>100</ns1:Limit>	
+					<ns1:Offset>0</ns1:Offset>
+				</ns1:GetNewlyUnboundTaxpayersRequest>
+			</ns0:Message>
+			<ns0:FileLinks>test/test2.txt</ns0:FileLinks>
+		</ns0:SendMessageRequest>
+	</soap-env:Body>
+</soap-env:Envelope>
+Response:
+HTTP/1.1 200 OK
+Date: Thu, 21 Jan 2021 14:34:28 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.21.v20170120)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><SendMessageResponse xmlns="urn://x-artefacts-gnivc-ru/inplat/servin/OpenApiAsyncMessageConsumerService/types/1.0"><MessageId>0bc1bdd3-614d-443d-922e-470010252189</MessageId></SendMessageResponse></soap:Body></soap:Envelope>
+ 
+Сервис. Ошибки на стороне сервиса
+Все ошибки, вызванные не корректной работой сервиса, передаются клиенту, в виде:
+HTTP/1.1 500 Server Error
+Date: Wed, 03 Oct 2018 12:51:51 GMT
+Content-Type: text/xml; charset=UTF-8
+Transfer-Encoding: chunked
+Server: Jetty(9.2.15.v20160210)
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"> <soap:Body><soap:Fault><faultcode>soap:Server</faultcode><faultstring>Произошла внутренняя ошибка 00c5b2ae-45b2-475d-9b49-9c9a88e53b97. При повторении ошибки обратитесь в службу технической поддержки.</faultstring></soap:Fault></soap:Body></soap:Envelope>
+Всем ошибкам на стороне сервиса, присваивается уникальный идентификатор (выделено желтым цветом в примере ответа).
+
