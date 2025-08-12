@@ -5,6 +5,68 @@ import axios from 'axios';
 export class FnsCheckService {
   private readonly logger = new Logger(FnsCheckService.name);
 
+  private normalizeSum(sum: any, additionalData?: Record<string, any>): number {
+    const numericSum = typeof sum === 'string' ? parseInt(sum, 10) : Number(sum);
+    if (!Number.isFinite(numericSum)) return 0;
+
+    // Если явно указано, что сумма уже в копейках, возвращаем как есть
+    if (additionalData && (additionalData.sumInKopecks === true || additionalData.sum_unit === 'kopecks')) {
+      return Math.trunc(numericSum);
+    }
+
+    // По умолчанию считаем, что если сумма меньше 1000, то она в рублях — конвертируем в копейки
+    // Это помогает, если клиент прислал 120 вместо 12000
+    if (numericSum > 0 && numericSum < 1000) {
+      return Math.trunc(numericSum * 100);
+    }
+
+    return Math.trunc(numericSum);
+  }
+
+  private normalizeDate(dateInput: any): string {
+    if (!dateInput) return '';
+    const str = String(dateInput).trim();
+
+    // Если приходит уже ISO с временем
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(str)) {
+      return str.length === 16 ? str + ':00' : str;
+    }
+
+    // Формат YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      return str + 'T00:00:00';
+    }
+
+    // Формат DD.MM.YYYY[ HH:mm[:ss]]
+    const dm = str.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (dm) {
+      const [, d, m, y, hh = '00', mm = '00', ss = '00'] = dm;
+      return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
+    }
+
+    // Формат YYYYMMDDTHHmm (классический из QR)
+    const compact = str.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?$/);
+    if (compact) {
+      const [, y, m, d, hh, mm, ss = '00'] = compact;
+      return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
+    }
+
+    // Fallback — пробуем через Date
+    const date = new Date(str);
+    if (!isNaN(date.getTime())) {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const y = date.getFullYear();
+      const m = pad(date.getMonth() + 1);
+      const d = pad(date.getDate());
+      const hh = pad(date.getHours());
+      const mm = pad(date.getMinutes());
+      const ss = pad(date.getSeconds());
+      return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
+    }
+
+    return str; // как есть, чтобы не ломать, если формат уже пригоден для ФНС
+  }
+
   async sendCheckRequest(qrData: any, token: string): Promise<string> {
     this.logger.log(`Sending check request for QR data: ${JSON.stringify(qrData)}`);
 
@@ -37,6 +99,10 @@ export class FnsCheckService {
     const baseUrl = process.env.FTX_API_URL || 'https://openapi.nalog.ru:8090';
     const serviceUrl = `${baseUrl}/open-api/ais3/KktService/0.1`;
     
+    const sum = this.normalizeSum(qrData.sum, qrData.additionalData);
+    const date = this.normalizeDate(qrData.date || qrData.dateTime);
+    const typeOperation = qrData.typeOperation || 1;
+    
     const soapRequest = `
       <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
         <soap-env:Body>
@@ -44,10 +110,10 @@ export class FnsCheckService {
             <ns0:Message>
               <tns:GetTicketRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/KktTicketService/types/1.0">
                 <tns:GetTicketInfo>
-                  <tns:Sum>${qrData.sum}</tns:Sum>
-                  <tns:Date>${qrData.date}</tns:Date>
+                  <tns:Sum>${sum}</tns:Sum>
+                  <tns:Date>${date}</tns:Date>
                   <tns:Fn>${qrData.fn}</tns:Fn>
-                  <tns:TypeOperation>${qrData.typeOperation || 1}</tns:TypeOperation>
+                  <tns:TypeOperation>${typeOperation}</tns:TypeOperation>
                   <tns:FiscalDocumentId>${qrData.fd}</tns:FiscalDocumentId>
                   <tns:FiscalSign>${qrData.fp}</tns:FiscalSign>
                   <tns:RawData>true</tns:RawData>
@@ -163,12 +229,16 @@ export class FnsCheckService {
     const processingStatusMatch = xmlResponse.match(/<ProcessingStatus>([^<]+)<\/ProcessingStatus>/);
     const fnsProcessingStatus = processingStatusMatch ? processingStatusMatch[1] : 'UNKNOWN';
 
-    const ticketMatch = xmlResponse.match(/<ns2:Ticket>([^<]+)<\/ns2:Ticket>/);
+    // Читаем код результата, если есть
+    const codeMatch = xmlResponse.match(/<(?:\w+:)?Code>(\d+)<\/(?:\w+:)?Code>/);
+    const resultCode = codeMatch ? parseInt(codeMatch[1], 10) : undefined;
+
+    // Ищем Ticket без привязки к namespace
+    const ticketMatch = xmlResponse.match(/<(?:\w+:)?Ticket>([\s\S]*?)<\/(?:\w+:)?Ticket>/);
     let receiptData = null;
-    
-    if (ticketMatch) {
+    if (ticketMatch && ticketMatch[1]) {
       try {
-        receiptData = JSON.parse(ticketMatch[1]);
+        receiptData = JSON.parse(ticketMatch[1].trim());
       } catch (e) {
         this.logger.warn('Failed to parse ticket JSON:', e);
       }
@@ -211,9 +281,17 @@ export class FnsCheckService {
             this.logger.log(`Receipt validated successfully - normal purchase operation`);
           }
         } else {
-          status = 'rejected';
-          isFake = true;
-          this.logger.warn('Receipt rejected - no receipt data received from FNS');
+          // Если нет Ticket, но есть код — ориентируемся по нему
+          if (typeof resultCode === 'number' && resultCode !== 200) {
+            status = 'rejected';
+            isFake = false;
+            this.logger.warn(`Receipt rejected by FNS. Result code: ${resultCode}`);
+          } else {
+            // Не удалось распарсить Ticket — не считаем чек фальшивым, просто отклоняем
+            status = 'rejected';
+            isFake = false;
+            this.logger.warn('Receipt rejected - no ticket data parsed from FNS response');
+          }
         }
         break;
       case 'FAILED':
