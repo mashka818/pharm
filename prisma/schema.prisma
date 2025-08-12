@@ -1,0 +1,390 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  password  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  role      AdminRole
+
+  // Связь с отменёнными кэшбеками
+  cancelledCashbacks Cashback[]
+
+  @@map("admins")
+}
+
+model Promotion {
+  promotionId String       @unique
+  name        String
+  logo        String
+  banner      String?
+  color       String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  description String
+  favicon     String
+  appId       String?
+  domain      String       @unique
+  inn         String?
+  ogrn        String?
+  brands      Brand[]
+  companies   Company[]
+  customers   Customer[]
+  fnsRequests FnsRequest[]
+  offers      Offer[]
+  products    Product[]
+  receipts    Receipt[]
+  cashbacks   Cashback[]    // Новая связь
+
+  @@map("promotions")
+}
+
+model Brand {
+  id          Int       @id @default(autoincrement())
+  promotionId String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  logo        String?
+  name        String
+  description String
+  promotion   Promotion @relation(fields: [promotionId], references: [promotionId])
+  products    Product[]
+
+  @@map("brands")
+}
+
+model Product {
+  id              Int              @id @default(autoincrement())
+  name            String
+  sku             String
+  fixCashback     Int?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  brandId         Int
+  promotionId     String
+  cashbackType    CashbackType?
+  offers          ProductOffer[]
+  brand           Brand            @relation(fields: [brandId], references: [id])
+  promotion       Promotion        @relation(fields: [promotionId], references: [promotionId])
+  receiptProducts ReceiptProduct[]
+  cashbackItems   CashbackItem[]   // Новая связь
+
+  @@map("products")
+}
+
+model ProductOffer {
+  productId Int
+  offerId   Int
+  offer     Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([productId, offerId])
+  @@map("product_offers")
+}
+
+model Offer {
+  id              Int              @id @default(autoincrement())
+  profit          Int
+  profitType      ProfitType
+  banner_image    String
+  banner_color    String
+  promotionId     String
+  conditionId     Int?             @unique
+  date_to         DateTime
+  date_from       DateTime
+  condition       OfferCondition?  @relation(fields: [conditionId], references: [id])
+  promotion       Promotion        @relation(fields: [promotionId], references: [promotionId])
+  cashbackItems   CashbackItem[]   // Новая связь
+  products        ProductOffer[]
+  receiptProducts ReceiptProduct[]
+
+  @@map("offers")
+}
+
+model OfferCondition {
+  id         Int                   @id @default(autoincrement())
+  variant    OfferConditionVariant
+  from_value Int?
+  to_value   Int?
+  type       OfferConditionType
+  Offer      Offer?
+}
+
+model Company {
+  id          Int         @id @default(autoincrement())
+  username    String      @unique
+  password    String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  promotionId String
+  role        CompanyRole
+  promotion   Promotion   @relation(fields: [promotionId], references: [promotionId])
+
+  @@map("companies")
+}
+
+model UnconfirmedCustomer {
+  id                Int          @id @default(autoincrement())
+  name              String
+  surname           String
+  patronymic        String?
+  email             String
+  createdAt         DateTime     @default(now())
+  confirmationToken String       @unique
+  promotionId       String
+  role              CustomerRole
+  password          String
+  address           String
+
+  @@map("unconfirmed_customers")
+}
+
+model Customer {
+  id                    Int                 @id @default(autoincrement())
+  name                  String
+  surname               String
+  patronymic            String?
+  email                 String
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  promotionId           String
+  role                  CustomerRole
+  password              String
+  bonuses               Int                 @default(0)
+  mainWithdrawalVariant Int?
+  address               String
+  promotion             Promotion           @relation(fields: [promotionId], references: [promotionId])
+  fnsRequests           FnsRequest[]
+  receipts              Receipt[]
+  withdrawalVariants    WithdrawalVariant[]
+  cashbacks             Cashback[]         // Новая связь
+
+  @@unique([email, promotionId])
+  @@map("customers")
+}
+
+model UnconfirmedEmail {
+  email             String
+  confirmationToken String   @unique
+  createdAt         DateTime @default(now())
+}
+
+model WithdrawalVariant {
+  id         Int            @id @default(autoincrement())
+  type       WithdrawalType
+  iconType   String
+  title      String         @unique
+  customerId Int
+  customer   Customer       @relation(fields: [customerId], references: [id])
+  Withdrowal Withdrawal[]
+
+  @@map("withdrawal_variants")
+}
+
+model Withdrawal {
+  id                  Int               @id @default(autoincrement())
+  withdrawalVariantId Int
+  date                DateTime
+  amount              Int
+  status              WithdrowalStaus
+  withdrawalVariant   WithdrawalVariant @relation(fields: [withdrawalVariantId], references: [id])
+
+  @@map("withdrawals")
+}
+
+model Receipt {
+  id          Int              @id @default(autoincrement())
+  date        DateTime
+  number      Int
+  price       Int
+  cashback    Int
+  status      ReceiptStaus
+  address     String
+  customerId  Int?
+  promotionId String
+  fnsRequests FnsRequest[]
+  products    ReceiptProduct[]
+  customer    Customer?        @relation(fields: [customerId], references: [id])
+  promotion   Promotion        @relation(fields: [promotionId], references: [promotionId])
+  cashbacks   Cashback[]       // Новая связь
+
+  @@map("receipts")
+}
+
+model ReceiptProduct {
+  id        Int     @id @default(autoincrement())
+  productId Int
+  offerId   Int?
+  cashback  Int
+  receiptId Int
+  offer     Offer?  @relation(fields: [offerId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+  Receipt   Receipt @relation(fields: [receiptId], references: [id])
+
+  @@map("receipt_products")
+}
+
+model FnsRequest {
+  id              String       @id @default(uuid())
+  customerId      Int?
+  receiptId       Int?
+  qrData          Json
+  messageId       String?
+  status          ReceiptStaus @default(pending)
+  fnsResponse     Json?
+  isValid         Boolean?
+  isReturn        Boolean?
+  isFake          Boolean?
+  cashbackAmount  Int?
+  cashbackAwarded Boolean      @default(false)
+  attempts        Int          @default(0)
+  lastAttemptAt   DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  promotionId     String
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  promotion       Promotion    @relation(fields: [promotionId], references: [promotionId])
+  receipt         Receipt?     @relation(fields: [receiptId], references: [id])
+  cashbacks       Cashback[]   // Новая связь
+
+  @@map("fns_requests")
+}
+
+model FnsToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("fns_tokens")
+}
+
+model FnsDailyLimit {
+  id    Int      @id @default(autoincrement())
+  date  DateTime @default(now())
+  count Int      @default(0)
+
+  @@map("fns_daily_limits")
+}
+
+// Новая модель для истории кэшбека
+model Cashback {
+  id            Int              @id @default(autoincrement())
+  customerId    Int
+  customer      Customer         @relation(fields: [customerId], references: [id])
+  receiptId     Int?
+  receipt       Receipt?         @relation(fields: [receiptId], references: [id])
+  fnsRequestId  String?
+  fnsRequest    FnsRequest?      @relation(fields: [fnsRequestId], references: [id])
+  promotionId   String
+  promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
+  
+  amount        Int              // Общая сумма кэшбека
+  status        CashbackStatus   @default(active)
+  reason        String?          // Причина отмены, если status = cancelled
+  
+  // Админ, который отменил кэшбек
+  cancelledBy   Int?
+  cancelledByAdmin Admin?        @relation(fields: [cancelledBy], references: [id])
+  cancelledAt   DateTime?
+  
+  // Детализация кэшбека по товарам/акциям
+  items         CashbackItem[]
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  @@map("cashbacks")
+}
+
+// Детализация кэшбека по товарам
+model CashbackItem {
+  id            Int       @id @default(autoincrement())
+  cashbackId    Int
+  cashback      Cashback  @relation(fields: [cashbackId], references: [id], onDelete: Cascade)
+  
+  productId     Int?
+  product       Product?  @relation(fields: [productId], references: [id])
+  offerId       Int?
+  offer         Offer?    @relation(fields: [offerId], references: [id])
+  
+  // Данные о товаре из чека
+  productName   String
+  productSku    String?
+  quantity      Int
+  itemPrice     Int       // Цена за единицу в копейках
+  totalPrice    Int       // Общая стоимость позиции в копейках
+  
+  // Расчёт кэшбека
+  cashbackAmount Int      // Сумма кэшбека за эту позицию
+  cashbackType   CashbackType
+  cashbackRate   Int?     // Процент или фиксированная сумма
+  
+  @@map("cashback_items")
+}
+
+enum AdminRole {
+  ADMIN
+}
+
+enum CashbackType {
+  percent
+  amount
+}
+
+enum OfferConditionVariant {
+  amount
+  price
+}
+
+enum OfferConditionType {
+  from
+  to
+  from_to
+}
+
+enum ProfitType {
+  static
+  from
+}
+
+enum CompanyRole {
+  COMPANY
+}
+
+enum CustomerRole {
+  CUSTOMER
+}
+
+enum WithdrawalType {
+  bank
+  phone
+}
+
+enum WithdrowalStaus {
+  pending
+  success
+  rejected
+}
+
+enum ReceiptStaus {
+  pending
+  success
+  rejected
+  processing
+  failed
+}
+
+enum CashbackStatus {
+  active
+  cancelled
+}
