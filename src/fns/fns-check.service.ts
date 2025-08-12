@@ -37,6 +37,10 @@ export class FnsCheckService {
     const baseUrl = process.env.FTX_API_URL || 'https://openapi.nalog.ru:8090';
     const serviceUrl = `${baseUrl}/open-api/ais3/KktService/0.1`;
     
+    // Валидация и форматирование данных для ФНС
+    const formattedData = this.formatQrDataForFns(qrData);
+    this.logger.log(`Formatted data for FNS: ${JSON.stringify(formattedData)}`);
+    
     const soapRequest = `
       <soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
         <soap-env:Body>
@@ -44,12 +48,12 @@ export class FnsCheckService {
             <ns0:Message>
               <tns:GetTicketRequest xmlns:tns="urn://x-artefacts-gnivc-ru/ais3/kkt/KktTicketService/types/1.0">
                 <tns:GetTicketInfo>
-                  <tns:Sum>${qrData.sum}</tns:Sum>
-                  <tns:Date>${qrData.date}</tns:Date>
-                  <tns:Fn>${qrData.fn}</tns:Fn>
-                  <tns:TypeOperation>${qrData.typeOperation || 1}</tns:TypeOperation>
-                  <tns:FiscalDocumentId>${qrData.fd}</tns:FiscalDocumentId>
-                  <tns:FiscalSign>${qrData.fp}</tns:FiscalSign>
+                  <tns:Sum>${formattedData.sum}</tns:Sum>
+                  <tns:Date>${formattedData.date}</tns:Date>
+                  <tns:Fn>${formattedData.fn}</tns:Fn>
+                  <tns:TypeOperation>${formattedData.typeOperation}</tns:TypeOperation>
+                  <tns:FiscalDocumentId>${formattedData.fd}</tns:FiscalDocumentId>
+                  <tns:FiscalSign>${formattedData.fp}</tns:FiscalSign>
                   <tns:RawData>true</tns:RawData>
                 </tns:GetTicketInfo>
               </tns:GetTicketRequest>
@@ -61,6 +65,7 @@ export class FnsCheckService {
 
     try {
       this.logger.log(`Sending SOAP request to: ${serviceUrl}`);
+      this.logger.log(`SOAP request body: ${soapRequest}`);
       
       const response = await axios.post(serviceUrl, soapRequest, {
         headers: {
@@ -70,6 +75,9 @@ export class FnsCheckService {
         },
         timeout: 30000,
       });
+
+      this.logger.log(`FNS response status: ${response.status}`);
+      this.logger.log(`FNS response data: ${response.data}`);
 
       const messageId = this.parseSendMessageResponse(response.data);
       this.logger.log(`Successfully sent message, received ID: ${messageId}`);
@@ -90,9 +98,91 @@ export class FnsCheckService {
         throw new Error('Authentication failed - invalid token');
       }
       
-      this.logger.error('SOAP SendMessage request failed:', error.response?.data || error.message);
-      throw new Error('Failed to send message to FNS');
+      // Добавляем более детальное логирование ошибок
+      this.logger.error('SOAP SendMessage request failed:');
+      this.logger.error(`Status: ${error.response?.status}`);
+      this.logger.error(`Data: ${error.response?.data}`);
+      this.logger.error(`Headers: ${JSON.stringify(error.response?.headers)}`);
+      this.logger.error(`Message: ${error.message}`);
+      
+      throw new Error(`Failed to send message to FNS: ${error.response?.data || error.message}`);
     }
+  }
+
+  /**
+   * Форматирует данные QR кода для отправки в ФНС
+   */
+  private formatQrDataForFns(qrData: any) {
+    // Валидация обязательных полей
+    if (!qrData.fn || !qrData.fd || !qrData.fp || !qrData.sum || !qrData.date) {
+      throw new Error('Missing required QR data fields: fn, fd, fp, sum, date');
+    }
+
+    // Форматирование суммы (должна быть в копейках)
+    let sum = qrData.sum;
+    if (typeof sum === 'string') {
+      sum = parseInt(sum, 10);
+    }
+    if (isNaN(sum) || sum <= 0) {
+      throw new Error(`Invalid sum value: ${qrData.sum}`);
+    }
+
+    // Форматирование даты для ФНС (ISO формат)
+    let formattedDate = qrData.date;
+    try {
+      const date = new Date(qrData.date);
+      if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date format: ${qrData.date}`);
+      }
+      
+      // Проверяем, что дата не в будущем (более чем на 1 день)
+      const now = new Date();
+      const oneDayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      if (date > oneDayFromNow) {
+        this.logger.warn(`Receipt date is in the future: ${qrData.date}. This may cause FNS rejection.`);
+      }
+      
+      // ФНС ожидает формат: YYYY-MM-DDTHH:mm:ss без миллисекунд и таймзоны
+      formattedDate = date.toISOString().split('.')[0];
+    } catch (error) {
+      throw new Error(`Failed to format date: ${qrData.date}`);
+    }
+
+    // Валидация типа операции
+    const typeOperation = qrData.typeOperation || 1;
+    if (typeOperation !== 1 && typeOperation !== 2) {
+      this.logger.warn(`Unusual typeOperation: ${typeOperation}. Expected 1 (purchase) or 2 (return).`);
+    }
+
+    // Валидация фискальных данных
+    const fn = String(qrData.fn).trim();
+    const fd = String(qrData.fd).trim();
+    const fp = String(qrData.fp).trim();
+
+    if (fn.length !== 16) {
+      this.logger.warn(`FN length is not 16 characters: ${fn} (length: ${fn.length})`);
+    }
+
+    if (!/^\d+$/.test(fn)) {
+      this.logger.warn(`FN contains non-numeric characters: ${fn}`);
+    }
+
+    if (!/^\d+$/.test(fd)) {
+      this.logger.warn(`FD contains non-numeric characters: ${fd}`);
+    }
+
+    if (!/^\d+$/.test(fp)) {
+      this.logger.warn(`FP contains non-numeric characters: ${fp}`);
+    }
+
+    return {
+      fn,
+      fd,
+      fp,
+      sum,
+      date: formattedDate,
+      typeOperation,
+    };
   }
 
   private async makeGetMessageRequest(messageId: string, token: string): Promise<any> {
@@ -160,17 +250,39 @@ export class FnsCheckService {
   }
 
   private parseGetMessageResponse(xmlResponse: string): any {
+    this.logger.log(`Parsing FNS response: ${xmlResponse}`);
+    
     const processingStatusMatch = xmlResponse.match(/<ProcessingStatus>([^<]+)<\/ProcessingStatus>/);
     const fnsProcessingStatus = processingStatusMatch ? processingStatusMatch[1] : 'UNKNOWN';
+    
+    this.logger.log(`FNS ProcessingStatus: ${fnsProcessingStatus}`);
 
-    const ticketMatch = xmlResponse.match(/<ns2:Ticket>([^<]+)<\/ns2:Ticket>/);
+    // Поиск данных чека в различных возможных форматах
+    const ticketMatch = xmlResponse.match(/<ns2:Ticket>([^<]+)<\/ns2:Ticket>/) ||
+                       xmlResponse.match(/<Ticket>([^<]+)<\/Ticket>/) ||
+                       xmlResponse.match(/<ticket>([^<]+)<\/ticket>/);
+    
     let receiptData = null;
     
     if (ticketMatch) {
+      this.logger.log(`Found ticket data: ${ticketMatch[1]}`);
       try {
         receiptData = JSON.parse(ticketMatch[1]);
+        this.logger.log(`Parsed receipt data: ${JSON.stringify(receiptData)}`);
       } catch (e) {
-        this.logger.warn('Failed to parse ticket JSON:', e);
+        this.logger.error('Failed to parse ticket JSON:', e);
+        this.logger.error('Raw ticket data:', ticketMatch[1]);
+      }
+    } else {
+      this.logger.warn('No ticket data found in FNS response');
+      
+      // Проверяем наличие ошибок в ответе
+      const errorMatch = xmlResponse.match(/<Error>([^<]+)<\/Error>/) ||
+                        xmlResponse.match(/<error>([^<]+)<\/error>/) ||
+                        xmlResponse.match(/<faultstring>([^<]+)<\/faultstring>/);
+      
+      if (errorMatch) {
+        this.logger.error(`FNS returned error: ${errorMatch[1]}`);
       }
     }
 
@@ -182,29 +294,60 @@ export class FnsCheckService {
     switch (fnsProcessingStatus) {
       case 'PENDING':
         status = 'pending';
+        this.logger.log('Receipt is still pending processing by FNS');
         break;
       case 'PROCESSING':
         status = 'processing';
+        this.logger.log('Receipt is being processed by FNS');
         break;
       case 'COMPLETED':
+        this.logger.log('FNS completed processing');
         if (receiptData) {
-          status = 'success';
-          isValid = true;
+          // Проверяем тип операции в полученных данных чека
+          const operationType = receiptData.operationType || receiptData.operation || receiptData.type;
+          this.logger.log(`Receipt operation type: ${operationType}`);
+          
+          // Проверяем различные индикаторы возврата в данных ФНС
+          const isReturnByType = operationType === 2 || operationType === '2' || 
+                                operationType === 'return' || operationType === 'возврат';
+          const isReturnByName = receiptData.operationName && 
+                                (receiptData.operationName.toLowerCase().includes('возврат') ||
+                                 receiptData.operationName.toLowerCase().includes('return'));
+          const isReturnByItems = receiptData.items && receiptData.items.some((item: any) => 
+                                  item.price < 0 || item.sum < 0);
+          
+          isReturn = isReturnByType || isReturnByName || isReturnByItems;
+          
+          this.logger.log(`Return check - byType: ${isReturnByType}, byName: ${isReturnByName}, byItems: ${isReturnByItems}`);
+          
+          if (isReturn) {
+            status = 'rejected';
+            this.logger.warn(`Receipt rejected - return operation detected. Type: ${operationType}, Operation: ${receiptData.operationName}`);
+          } else {
+            status = 'success';
+            isValid = true;
+            this.logger.log(`Receipt validated successfully - normal purchase operation`);
+          }
         } else {
           status = 'rejected';
           isFake = true;
+          this.logger.warn('Receipt rejected - no receipt data received from FNS (possible fake receipt)');
         }
         break;
       case 'FAILED':
         status = 'failed';
         isFake = true;
+        this.logger.warn('Receipt failed - FNS processing failed (possible network/server error)');
         break;
+      case 'UNKNOWN':
       default:
         status = 'failed';
         isFake = true;
+        this.logger.error(`Receipt failed - unknown FNS processing status: ${fnsProcessingStatus}`);
+        this.logger.error('Full FNS response for debugging:', xmlResponse);
     }
 
-    return {
+    const result = {
       processingStatus: fnsProcessingStatus,
       status,
       isValid,
@@ -212,6 +355,9 @@ export class FnsCheckService {
       isFake,
       receiptData,
     };
+    
+    this.logger.log(`Final parsed result: ${JSON.stringify(result)}`);
+    return result;
   }
 
   async waitForResult(messageId: string, token: string, maxAttempts: number = 10): Promise<any> {
