@@ -167,5 +167,84 @@ export class FnsController {
     };
   }
 
+  @Post('debug-receipt')
+  @ApiOperation({ 
+    summary: 'Отладка конкретного чека (только для разработки)',
+    description: 'Специальный endpoint для отладки проблем с проверкой чеков через ФНС. Включает детальное логирование всех этапов.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Результат отладки чека',
+    schema: {
+      type: 'object',
+      properties: {
+        originalData: { type: 'object' },
+        formattedData: { type: 'object' },
+        fnsResponse: { type: 'object' },
+        finalResult: { type: 'object' },
+        debugInfo: { type: 'object' }
+      }
+    }
+  })
+  async debugReceipt(
+    @Body() qrData: ScanQrCodeDto,
+  ) {
+    this.logger.log(`🔍 DEBUG: Starting receipt debug for data: ${JSON.stringify(qrData)}`);
+    
+    try {
+      // Не требуем авторизацию для отладки
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
+        originalData: qrData,
+        formattedData: null,
+        fnsResponse: null,
+        finalResult: null,
+        errors: [],
+        warnings: []
+      };
+
+      // Проверяем данные
+      if (qrData.sum === 120) {
+        debugInfo.warnings.push('Sum is 120 - this might be 1.20 rubles. FNS expects sum in kopecks (120 kopecks = 1.20 rubles)');
+      }
+
+      const qrDate = new Date(qrData.date);
+      const now = new Date();
+      if (qrDate > now) {
+        debugInfo.warnings.push(`Receipt date ${qrData.date} is in the future. This will likely cause FNS to reject the receipt.`);
+      }
+
+      if (qrDate.getFullYear() === 2025) {
+        debugInfo.errors.push('Receipt date is in 2025 which is definitely incorrect. Please check the date.');
+      }
+
+      // Для отладки используем тестовые данные вместо реального ФНС
+      debugInfo.finalResult = {
+        status: 'debug',
+        message: 'This is a debug response. Check warnings and errors above.',
+        originalSum: qrData.sum,
+        suggestedSum: qrData.sum === 120 ? 12000 : qrData.sum, // Если 120, предлагаем 12000 копеек (120 рублей)
+        dateAnalysis: {
+          original: qrData.date,
+          parsed: qrDate.toISOString(),
+          isInFuture: qrDate > now,
+          year: qrDate.getFullYear(),
+          isReasonableYear: qrDate.getFullYear() >= 2020 && qrDate.getFullYear() <= now.getFullYear()
+        }
+      };
+
+      this.logger.log(`🔍 DEBUG: Complete analysis: ${JSON.stringify(debugInfo)}`);
+      return debugInfo;
+
+    } catch (error) {
+      this.logger.error('🔍 DEBUG: Error during debug:', error);
+      return {
+        error: error.message,
+        originalData: qrData,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
 
 } 
