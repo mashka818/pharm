@@ -265,12 +265,174 @@ export class CashbackService {
   }
 
   /**
+   * Получение истории кешбека для клиента
+   */
+  async getCustomerCashbackHistory(customerId: number, promotionId?: string) {
+    this.logger.log(`Getting cashback history for customer ${customerId}, promotion: ${promotionId}`);
+    
+    const whereClause: any = {
+      customerId,
+    };
+
+    if (promotionId) {
+      whereClause.promotionId = promotionId;
+    }
+
+    const cashbacks = await this.prisma.cashback.findMany({
+      where: whereClause,
+      include: {
+        receipt: {
+          select: {
+            id: true,
+            number: true,
+            date: true,
+            address: true,
+            price: true,
+          },
+        },
+        fnsRequest: {
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+          },
+        },
+        promotion: {
+          select: {
+            promotionId: true,
+            name: true,
+            domain: true,
+          },
+        },
+        cancelledByAdmin: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                brand: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            offer: {
+              select: {
+                id: true,
+                profit: true,
+                profitType: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    this.logger.log(`Retrieved ${cashbacks.length} cashback records for customer ${customerId}`);
+    
+    // Группируем по статусу для статистики
+    const statistics = {
+      total: cashbacks.length,
+      active: cashbacks.filter(c => c.status === 'active').length,
+      cancelled: cashbacks.filter(c => c.status === 'cancelled').length,
+      totalAmount: cashbacks.filter(c => c.status === 'active').reduce((sum, c) => sum + c.amount, 0),
+      cancelledAmount: cashbacks.filter(c => c.status === 'cancelled').reduce((sum, c) => sum + c.amount, 0),
+    };
+
+    return {
+      cashbacks,
+      statistics,
+    };
+  }
+
+  /**
+   * Получение детальной информации о конкретном кешбеке
+   */
+  async getCashbackDetails(cashbackId: number, customerId?: number) {
+    const whereClause: any = { id: cashbackId };
+    if (customerId) {
+      whereClause.customerId = customerId;
+    }
+
+    const cashback = await this.prisma.cashback.findUnique({
+      where: whereClause,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            email: true,
+          },
+        },
+        receipt: {
+          include: {
+            products: {
+              include: {
+                product: {
+                  include: {
+                    brand: true,
+                  },
+                },
+                offer: true,
+              },
+            },
+          },
+        },
+        promotion: {
+          select: {
+            promotionId: true,
+            name: true,
+            domain: true,
+          },
+        },
+        cancelledByAdmin: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              include: {
+                brand: true,
+              },
+            },
+            offer: true,
+          },
+        },
+      },
+    });
+
+    if (!cashback) {
+      throw new NotFoundException('Cashback not found');
+    }
+
+    return cashback;
+  }
+
+  /**
    * Получение активных акций для промоакции
    */
   private async getActiveOffers(promotionId: string) {
     const now = new Date();
     
-    return await this.prisma.offer.findMany({
+    this.logger.log(`Getting active offers for promotion ${promotionId} at ${now.toISOString()}`);
+    
+    const offers = await this.prisma.offer.findMany({
       where: {
         promotionId,
         date_from: { lte: now },
@@ -292,6 +454,32 @@ export class CashbackService {
         profit: 'desc', // Приоритет более выгодным акциям
       },
     });
+
+    this.logger.log(`Found ${offers.length} active offers for promotion ${promotionId}`);
+    
+    // Фильтруем акции, у которых есть товары
+    const validOffers = offers.filter(offer => {
+      const hasProducts = offer.products && offer.products.length > 0;
+      const hasValidProfit = offer.profit > 0;
+      
+      if (!hasProducts) {
+        this.logger.warn(`Offer ${offer.id} has no products assigned`);
+      }
+      if (!hasValidProfit) {
+        this.logger.warn(`Offer ${offer.id} has invalid profit: ${offer.profit}`);
+      }
+      
+      return hasProducts && hasValidProfit;
+    });
+
+    this.logger.log(`${validOffers.length} valid offers after filtering`);
+    
+    // Логируем детали акций для отладки
+    validOffers.forEach(offer => {
+      this.logger.debug(`Offer ${offer.id}: ${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'}, products: ${offer.products.length}, condition: ${offer.condition ? 'yes' : 'no'}`);
+    });
+    
+    return validOffers;
   }
 
   /**
@@ -336,13 +524,9 @@ export class CashbackService {
         }
       }
 
-      // Если не нашли подходящую акцию, проверяем фиксированный кэшбек товара
-      if (!bestMatch) {
-        const productMatch = await this.tryMatchWithProductCashback(receiptItem);
-        if (productMatch) {
-          bestMatch = productMatch;
-        }
-      }
+      // ВАЖНО: Кешбек начисляется ТОЛЬКО за товары, участвующие в акциях
+      // Убираем проверку фиксированного кешбека товаров без акций
+      // Согласно требованиям: "кешбек должен начисляться только за те товары, которые входили в какие либо акции"
 
       if (bestMatch) {
         result.items.push(bestMatch);
@@ -351,9 +535,14 @@ export class CashbackService {
         if (bestMatch.offerId && !result.appliedOffers.includes(bestMatch.offerId)) {
           result.appliedOffers.push(bestMatch.offerId);
         }
+        
+        this.logger.log(`Item "${receiptItem.name}" matched with offer ${bestMatch.offerId}, cashback: ${bestMatch.cashbackAmount}`);
+      } else {
+        this.logger.log(`Item "${receiptItem.name}" - no active promotions, no cashback awarded`);
       }
     }
 
+    this.logger.log(`Total items processed: ${receiptItems.length}, items with cashback: ${result.items.length}, total cashback: ${result.totalCashback}`);
     return result;
   }
 
@@ -364,22 +553,35 @@ export class CashbackService {
     receiptItem: ReceiptItem,
     offer: any
   ): Promise<CashbackItemCalculation | null> {
+    this.logger.debug(`Trying to match item "${receiptItem.name}" with offer ${offer.id} (${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'})`);
+    
     // Проверяем, подходит ли товар под акцию
     const matchingProduct = offer.products.find((productOffer: any) =>
       this.isProductMatch(receiptItem, productOffer.product)
     );
 
     if (!matchingProduct) {
+      this.logger.debug(`Item "${receiptItem.name}" - no matching product in offer ${offer.id}`);
       return null;
     }
 
+    this.logger.debug(`Item "${receiptItem.name}" matched with product "${matchingProduct.product.name}" (ID: ${matchingProduct.product.id})`);
+
     // Проверяем условия акции
     if (offer.condition && !this.checkOfferCondition(receiptItem, offer.condition)) {
+      this.logger.debug(`Item "${receiptItem.name}" - offer condition not met for offer ${offer.id}`);
       return null;
     }
 
     // Рассчитываем кэшбек
     const cashbackAmount = this.calculateOfferCashback(receiptItem, offer);
+    
+    if (cashbackAmount <= 0) {
+      this.logger.debug(`Item "${receiptItem.name}" - calculated cashback is 0 or negative`);
+      return null;
+    }
+
+    this.logger.debug(`Item "${receiptItem.name}" - cashback calculated: ${cashbackAmount}`);
 
     return {
       productName: receiptItem.name,

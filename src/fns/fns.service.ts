@@ -223,6 +223,8 @@ export class FnsService {
   private async handleCheckResult(requestId: string, result: any, customerId?: number) {
     const status = result.status;
     
+    this.logger.log(`Handling check result for request ${requestId}: status=${status}, isValid=${result.isValid}, isReturn=${result.isReturn}, isFake=${result.isFake}`);
+    
     let fnsRequest;
     try {
       fnsRequest = await this.prisma.fnsRequest.findUnique({
@@ -237,7 +239,8 @@ export class FnsService {
       }
     }
     
-    if (status === 'success') {
+    if (status === 'success' && result.isValid && !result.isReturn && !result.isFake) {
+      // Начисляем кешбек только для валидных чеков покупки (не возврата)
       let cashbackAmount = 0;
       let cashbackId = null;
       
@@ -251,11 +254,24 @@ export class FnsService {
           );
           
           if (calculationResult.totalCashback > 0) {
+            // Дополнительная проверка: убеждаемся что чек не содержит отрицательных сумм
+            const hasNegativeItems = this.checkForNegativeItems(result.receiptData);
+            if (hasNegativeItems) {
+              this.logger.warn(`Request ${requestId}: Receipt contains negative items, treating as return`);
+              await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
+                isReturn: true,
+                isFake: false,
+                fnsResponse: result,
+              });
+              return;
+            }
+            
             const receiptRecord = await this.createReceiptRecord(
               result.receiptData, 
               customerId, 
               fnsRequest.promotionId, 
-              calculationResult.totalCashback
+              calculationResult.totalCashback,
+              calculationResult
             );
             
             const awardResult = await this.cashbackService.awardCashback(
@@ -270,6 +286,8 @@ export class FnsService {
             cashbackId = awardResult.cashbackId;
             
             this.logger.log(`Awarded cashback ${cashbackAmount} to customer ${customerId} (cashback ID: ${cashbackId})`);
+          } else {
+            this.logger.log(`No eligible items for cashback in request ${requestId}`);
           }
         } catch (error) {
           this.logger.error(`Error awarding cashback for request ${requestId}:`, error);
@@ -282,7 +300,7 @@ export class FnsService {
           
           if (cashbackAmount > 0) {
             await this.fnsCashbackService.awardCashbackToCustomer(customerId, cashbackAmount);
-            await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount);
+            await this.createReceiptRecord(result.receiptData, customerId, fnsRequest.promotionId, cashbackAmount, null);
           }
         }
       }
@@ -291,24 +309,55 @@ export class FnsService {
         cashbackAmount,
         cashbackAwarded: cashbackAmount > 0,
         fnsResponse: result,
+        isValid: true,
+        isReturn: false,
+        isFake: false,
       });
-    } else if (status === 'rejected') {
+    } else if (status === 'rejected' || result.isReturn || result.isFake) {
+      // Отклоняем чек если он возвратный или поддельный
+      const rejectReason = result.isReturn ? 'return operation' : 
+                          result.isFake ? 'fake receipt' : 'validation failed';
+      this.logger.warn(`Request ${requestId} rejected: ${rejectReason}`);
+      
       await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
-        isReturn: result.isReturn,
-        isFake: result.isFake,
+        isReturn: result.isReturn || false,
+        isFake: result.isFake || false,
         fnsResponse: result,
       });
     } else if (status === 'failed') {
+      this.logger.warn(`Request ${requestId} failed: processing error`);
       await this.fnsQueueService.updateRequestStatus(requestId, 'failed', {
         isReturn: false,
         isFake: true,
         fnsResponse: result,
       });
     } else {
+      this.logger.warn(`Request ${requestId} unknown status: ${status}`);
       await this.fnsQueueService.updateRequestStatus(requestId, status, {
         fnsResponse: result,
       });
     }
+  }
+
+  /**
+   * Проверяет наличие отрицательных сумм в чеке (индикатор возврата)
+   */
+  private checkForNegativeItems(receiptData: any): boolean {
+    if (!receiptData) return false;
+    
+    // Проверяем общую сумму
+    if (receiptData.totalSum < 0 || receiptData.sum < 0 || receiptData.total < 0) {
+      return true;
+    }
+    
+    // Проверяем позиции
+    const items = receiptData.items || receiptData.products || [];
+    return items.some((item: any) => 
+      (item.price && item.price < 0) || 
+      (item.sum && item.sum < 0) || 
+      (item.total && item.total < 0) ||
+      (item.amount && item.amount < 0)
+    );
   }
 
   async getQueueStats() {
@@ -392,8 +441,17 @@ export class FnsService {
     };
   }
 
-  private async createReceiptRecord(receiptData: any, customerId: number, promotionId: string, cashback: number): Promise<any> {
+  private async createReceiptRecord(
+    receiptData: any, 
+    customerId: number, 
+    promotionId: string, 
+    cashback: number,
+    calculationResult?: any
+  ): Promise<any> {
     try {
+      this.logger.log(`Creating receipt record for customer ${customerId}, promotion ${promotionId}, cashback: ${cashback}`);
+      
+      // Создаем запись чека
       const receipt = await this.prisma.receipt.create({
         data: {
           date: new Date(receiptData.dateTime || receiptData.date),
@@ -401,14 +459,76 @@ export class FnsService {
           price: parseInt(receiptData.totalSum || receiptData.sum),
           cashback,
           status: 'success',
-          address: receiptData.retailPlace || 'Неизвестно',
+          address: receiptData.retailPlace || receiptData.retailPlaceAddress || 'Неизвестно',
           promotionId,
           customerId,
         },
       });
 
-      this.logger.log(`Created receipt record with ID: ${receipt.id}`);
-      return receipt;
+      // Создаем записи товаров из чека с детализацией кешбека
+      if (calculationResult && calculationResult.items && calculationResult.items.length > 0) {
+        const receiptProducts = await Promise.all(
+          calculationResult.items.map(async (item: any) => {
+            try {
+              return await this.prisma.receiptProduct.create({
+                data: {
+                  receiptId: receipt.id,
+                  productId: item.productId,
+                  offerId: item.offerId,
+                  cashback: item.cashbackAmount,
+                },
+              });
+            } catch (error) {
+              this.logger.error(`Error creating receipt product for item ${item.productName}:`, error);
+              return null;
+            }
+          })
+        );
+
+        const successfulProducts = receiptProducts.filter(p => p !== null);
+        this.logger.log(`Created ${successfulProducts.length} receipt product records for receipt ${receipt.id}`);
+      }
+
+      // Получаем полную информацию о созданном чеке
+      const completeReceipt = await this.prisma.receipt.findUnique({
+        where: { id: receipt.id },
+        include: {
+          products: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                },
+              },
+              offer: {
+                select: {
+                  id: true,
+                  profit: true,
+                  profitType: true,
+                },
+              },
+            },
+          },
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              surname: true,
+            },
+          },
+          promotion: {
+            select: {
+              promotionId: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(`Created complete receipt record with ID: ${receipt.id}, products: ${completeReceipt?.products?.length || 0}`);
+      return completeReceipt;
     } catch (error) {
       this.logger.error('Error creating receipt record:', error);
       return null;

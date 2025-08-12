@@ -188,20 +188,43 @@ export class FnsCheckService {
         break;
       case 'COMPLETED':
         if (receiptData) {
-          status = 'success';
-          isValid = true;
+          // Проверяем тип операции в полученных данных чека
+          const operationType = receiptData.operationType || receiptData.operation;
+          
+          // Проверяем различные индикаторы возврата в данных ФНС
+          const isReturnByType = operationType === 2 || operationType === '2' || 
+                                operationType === 'return' || operationType === 'возврат';
+          const isReturnByName = receiptData.operationName && 
+                                (receiptData.operationName.toLowerCase().includes('возврат') ||
+                                 receiptData.operationName.toLowerCase().includes('return'));
+          const isReturnByItems = receiptData.items && receiptData.items.some((item: any) => 
+                                  item.price < 0 || item.sum < 0);
+          
+          isReturn = isReturnByType || isReturnByName || isReturnByItems;
+          
+          if (isReturn) {
+            status = 'rejected';
+            this.logger.warn(`Receipt rejected - return operation detected. Type: ${operationType}, Operation: ${receiptData.operationName}`);
+          } else {
+            status = 'success';
+            isValid = true;
+            this.logger.log(`Receipt validated successfully - normal purchase operation`);
+          }
         } else {
           status = 'rejected';
           isFake = true;
+          this.logger.warn('Receipt rejected - no receipt data received from FNS');
         }
         break;
       case 'FAILED':
         status = 'failed';
         isFake = true;
+        this.logger.warn('Receipt failed - FNS processing failed');
         break;
       default:
         status = 'failed';
         isFake = true;
+        this.logger.warn(`Receipt failed - unknown FNS processing status: ${fnsProcessingStatus}`);
     }
 
     return {
