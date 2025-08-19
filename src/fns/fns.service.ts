@@ -83,7 +83,7 @@ export class FnsService {
     }
   }
 
-  async verifyReceipt(qrData: VerifyReceiptDto, customerId?: number) {
+  async verifyReceipt(qrData: VerifyReceiptDto, customerId?: number, promotionId?: string) {
     this.logger.log(`Starting receipt verification for QR data: ${JSON.stringify(qrData)}`);
     
     try {
@@ -98,7 +98,7 @@ export class FnsService {
         }
       }
 
-      const requestId = await this.fnsQueueService.addToQueue(qrData, customerId);
+      const requestId = await this.fnsQueueService.addToQueue(qrData, customerId, promotionId);
       
       return {
         requestId,

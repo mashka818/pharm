@@ -32,6 +32,7 @@ export class FnsQueueService {
             qrData: qrData as any,
             status: 'pending',
             attempts: 0,
+            promotionId, // Добавляем обязательное поле promotionId
           };
           
           if (customerId) {
@@ -54,7 +55,7 @@ export class FnsQueueService {
     }
   }
 
-  async addToQueue(qrData: VerifyReceiptDto, customerId?: number): Promise<string> {
+  async addToQueue(qrData: VerifyReceiptDto, customerId?: number, promotionId?: string): Promise<string> {
     this.logger.log(`Adding request to queue: ${JSON.stringify(qrData)}`);
 
     try {
@@ -66,6 +67,7 @@ export class FnsQueueService {
           status: 'pending',
           attempts: 0,
           customerId,
+          promotionId,
         },
       });
 
