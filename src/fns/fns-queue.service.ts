@@ -60,19 +60,63 @@ export class FnsQueueService {
     try {
       await this.checkDailyLimit();
 
-      const promotionId = 'default-promotion';
+      let promotionId = 'default-promotion';
+      let validCustomerId = null;
       
+      // Проверяем существование customer и получаем его promotionId
+      if (customerId) {
+        try {
+          const existingCustomer = await this.prisma.customer.findUnique({
+            where: { id: customerId },
+            select: { id: true, promotionId: true },
+          });
+          
+          if (existingCustomer) {
+            validCustomerId = existingCustomer.id;
+            promotionId = existingCustomer.promotionId;
+            this.logger.log(`Using customer's promotionId: ${promotionId}`);
+          } else {
+            this.logger.warn(`Customer with ID ${customerId} not found, will try with default promotion`);
+          }
+        } catch (customerError) {
+          this.logger.warn(`Error checking customer existence: ${customerError.message}`);
+        }
+      }
+
+      // Проверяем существование promotion
+      try {
+        const existingPromotion = await this.prisma.promotion.findUnique({
+          where: { promotionId },
+        });
+        
+        if (!existingPromotion) {
+          this.logger.warn(`Promotion with ID ${promotionId} not found, will try to find any existing promotion`);
+          
+          // Попробуем найти любую существующую promotion
+          const anyPromotion = await this.prisma.promotion.findFirst();
+          if (anyPromotion) {
+            promotionId = anyPromotion.promotionId;
+            this.logger.log(`Using first available promotionId: ${promotionId}`);
+          } else {
+            throw new Error('No promotions found in database');
+          }
+        }
+      } catch (promotionError) {
+        this.logger.error(`Error with promotions: ${promotionError.message}`);
+        throw new Error('Unable to process request: no valid promotion found');
+      }
+
       const request = await this.prisma.fnsRequest.create({
         data: {
           qrData: qrData as any,
           status: 'pending',
           attempts: 0,
-          customerId,
+          customerId: validCustomerId,
           promotionId,
         },
       });
 
-      this.logger.log(`Request added to queue with ID: ${request.id}`);
+      this.logger.log(`Request added to queue with ID: ${request.id}, promotionId: ${promotionId}, customerId: ${validCustomerId}`);
       return request.id;
     } catch (error) {
       this.logger.error('Error adding request to queue:', error);
