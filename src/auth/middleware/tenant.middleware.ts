@@ -26,6 +26,7 @@ export class TenantMiddleware implements NestMiddleware {
     const host = req.get('host') || req.hostname;
 
     try {
+      // Ищем промоакцию по домену
       const promotion = await this.prisma.promotion.findFirst({
         where: {
           domain: {
@@ -42,10 +43,10 @@ export class TenantMiddleware implements NestMiddleware {
       if (promotion) {
         req.tenant = promotion;
       } else {
-        // Если домен не найден — не подставляем фиктивный promotionId, оставляем пустым
+        // Если домен не найден, используем промоакцию по умолчанию или ошибку
         req.tenant = {
-          promotionId: null as unknown as string,
-          name: 'Unknown Network',
+          promotionId: 'default-promotion',
+          name: 'Default Network',
           domain: host,
         };
       }

@@ -143,32 +143,13 @@ export class FnsCashbackService {
   }
 
   async checkCashbackLimits(customerId: number, receiptData: any): Promise<boolean> {
-    const existingRequest = await this.prisma.fnsRequest.findFirst({
-      where: {
-        customerId,
-        qrData: {
-          path: ['fn'],
-          equals: receiptData.fn,
-        },
-        cashbackAwarded: true,
-      },
-    });
-
-    if (existingRequest) {
-      this.logger.warn(`Customer ${customerId} already received cashback for this receipt`);
-      return false;
-    }
-
-    return true;
-  }
-
-  async checkCashbackLimitsForPromotion(customerId: number, receiptData: any, promotionId: string): Promise<boolean> {
-    let existingRequest;
+    this.logger.log(`Checking global cashback limits for customer ${customerId}, receipt fn: ${receiptData.fn}`);
+    
     try {
-      existingRequest = await this.prisma.fnsRequest.findFirst({
+      // Проверяем, не обрабатывался ли уже этот чек пользователем
+      const existingRequest = await this.prisma.fnsRequest.findFirst({
         where: {
           customerId,
-          promotionId,
           qrData: {
             path: ['fn'],
             equals: receiptData.fn,
@@ -187,52 +168,150 @@ export class FnsCashbackService {
               },
             },
           ],
+          OR: [
+            { cashbackAwarded: true },
+            { status: 'success' },
+            { status: 'pending' },
+            { status: 'processing' }
+          ],
+        },
+        select: {
+          id: true,
           cashbackAwarded: true,
+          status: true,
+          createdAt: true,
         },
       });
-    } catch (error) {
-      if (error.message.includes('promotionId')) {
-        existingRequest = await this.prisma.fnsRequest.findFirst({
-          where: {
-            customerId,
-            qrData: {
-              path: ['fn'],
-              equals: receiptData.fn,
-            },
-            AND: [
-              {
-                qrData: {
-                  path: ['fd'],
-                  equals: receiptData.fd,
-                },
-              },
-              {
-                qrData: {
-                  path: ['fp'],
-                  equals: receiptData.fp,
-                },
-              },
-            ],
-            cashbackAwarded: true,
-          },
-        });
-      } else {
-        throw error;
+
+      if (existingRequest) {
+        this.logger.warn(`Customer ${customerId} already processed this receipt. RequestId: ${existingRequest.id}, status: ${existingRequest.status}`);
+        return false;
       }
-    }
 
-    if (existingRequest) {
-      this.logger.warn(`Customer ${customerId} already received cashback for this receipt in promotion ${promotionId}`);
+      // Дополнительная проверка на подозрительную активность
+      const recentRequests = await this.prisma.fnsRequest.count({
+        where: {
+          customerId,
+          createdAt: {
+            gte: new Date(Date.now() - 60 * 60 * 1000), // последний час
+          },
+          OR: [
+            { cashbackAwarded: true },
+            { status: 'success' },
+          ],
+        },
+      });
+
+      // Лимит на количество успешных запросов в час
+      const HOURLY_LIMIT = 5;
+      if (recentRequests >= HOURLY_LIMIT) {
+        this.logger.warn(`Customer ${customerId} exceeded hourly limit (${recentRequests}/${HOURLY_LIMIT})`);
+        return false;
+      }
+
+      this.logger.log(`Global cashback limits check passed for customer ${customerId}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error checking global cashback limits for customer ${customerId}:`, error);
+      // В случае ошибки БД, блокируем для безопасности
       return false;
     }
+  }
 
-    const dailyLimit = await this.checkDailyCashbackLimit(customerId, promotionId);
-    if (!dailyLimit) {
-      this.logger.warn(`Customer ${customerId} exceeded daily cashback limit in promotion ${promotionId}`);
+  async checkCashbackLimitsForPromotion(customerId: number, receiptData: any, promotionId: string): Promise<boolean> {
+    this.logger.log(`Checking cashback limits for customer ${customerId}, promotion ${promotionId}, receipt fn: ${receiptData.fn}`);
+    
+    try {
+      // Проверяем, не сканировал ли уже пользователь этот чек в ЛЮБОЙ сети
+      const globalExistingRequest = await this.prisma.fnsRequest.findFirst({
+        where: {
+          customerId,
+          qrData: {
+            path: ['fn'],
+            equals: receiptData.fn,
+          },
+          AND: [
+            {
+              qrData: {
+                path: ['fd'],
+                equals: receiptData.fd,
+              },
+            },
+            {
+              qrData: {
+                path: ['fp'],
+                equals: receiptData.fp,
+              },
+            },
+          ],
+          OR: [
+            { cashbackAwarded: true },
+            { status: 'success' },
+            { status: 'pending' },
+            { status: 'processing' }
+          ],
+        },
+        select: {
+          id: true,
+          promotionId: true,
+          cashbackAwarded: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      if (globalExistingRequest) {
+        this.logger.warn(`Customer ${customerId} already processed this receipt. RequestId: ${globalExistingRequest.id}, promotion: ${globalExistingRequest.promotionId}, status: ${globalExistingRequest.status}`);
+        return false;
+      }
+
+      // Дополнительная проверка по сумме и дате для предотвращения мошенничества
+      const recentSimilarRequest = await this.prisma.fnsRequest.findFirst({
+        where: {
+          customerId,
+          qrData: {
+            path: ['sum'],
+            equals: receiptData.sum,
+          },
+          AND: [
+            {
+              qrData: {
+                path: ['date'],
+                equals: receiptData.date,
+              },
+            },
+          ],
+          createdAt: {
+            gte: new Date(Date.now() - 60 * 60 * 1000), // последний час
+          },
+          OR: [
+            { cashbackAwarded: true },
+            { status: 'success' },
+            { status: 'pending' },
+            { status: 'processing' }
+          ],
+        },
+      });
+
+      if (recentSimilarRequest) {
+        this.logger.warn(`Customer ${customerId} recently processed similar receipt (same sum/date within 1 hour)`);
+        return false;
+      }
+
+      // Проверяем дневной лимит кешбека для пользователя в конкретной промоакции
+      const dailyLimit = await this.checkDailyCashbackLimit(customerId, promotionId);
+      if (!dailyLimit) {
+        this.logger.warn(`Customer ${customerId} exceeded daily cashback limit in promotion ${promotionId}`);
+        return false;
+      }
+
+      this.logger.log(`Cashback limits check passed for customer ${customerId}, promotion ${promotionId}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error checking cashback limits for customer ${customerId}, promotion ${promotionId}:`, error);
+      // В случае ошибки БД, блокируем для безопасности
       return false;
     }
-
-    return true;
   }
 
   private async checkDailyCashbackLimit(customerId: number, promotionId: string): Promise<boolean> {

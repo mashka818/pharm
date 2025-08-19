@@ -54,11 +54,36 @@ export class CreateOfferDto {
   date_to: string;
 
   @ApiProperty({
-    description: 'Массив идентификаторов продуктов',
-    example: '[1, 2]',
+    description: 'Массив идентификаторов продуктов (можно передавать как JSON массив "[1,2]" или строку с числами через запятую "1,2")',
+    example: '1,2',
     required: true,
   })
-  @Transform(({ value }) => JSON.parse(value))
+  @Transform(({ value }) => {
+    try {
+      if (typeof value === 'string') {
+        // Проверяем, является ли это JSON строкой
+        if (value.startsWith('[') && value.endsWith(']')) {
+          return JSON.parse(value);
+        }
+        // Если это строка с числами, разделенными запятыми
+        if (value.includes(',')) {
+          return value.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+        }
+        // Если это одно число
+        const singleId = parseInt(value);
+        if (!isNaN(singleId)) {
+          return [singleId];
+        }
+      }
+      if (Array.isArray(value)) {
+        return value;
+      }
+      return value;
+    } catch (error) {
+      console.error('Error parsing productIds:', error, 'Value:', value);
+      return value;
+    }
+  })
   @IsArray()
   productIds: number[];
 
@@ -74,7 +99,19 @@ export class CreateOfferDto {
     type: CreateOfferConditionDto,
   })
   @ValidateNested()
-  @Transform(({ value }) => JSON.parse(value))
+  @Transform(({ value }) => {
+    try {
+      if (typeof value === 'string') {
+        return JSON.parse(value);
+      }
+      if (typeof value === 'object' && value !== null) {
+        return value;
+      }
+      return value;
+    } catch (error) {
+      return value;
+    }
+  })
   @IsOptional()
   @Type(() => CreateOfferConditionDto)
   condition?: CreateOfferConditionDto;

@@ -23,6 +23,19 @@ export class ReceiptsController {
     return this.receiptsService.create(createReceiptDto);
   }
 
+  @ApiOperation({ 
+    summary: 'Создать тестовый чек для проверки кэшбека', 
+    description: 'Создаёт тестовый чек с автоматическим расчетом кэшбека на основе существующих акций и продуктов.' 
+  })
+  @ApiResponse({ status: 201, description: 'Тестовый чек успешно создан' })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+  @Post('test-cashback')
+  createTestReceiptForCashback() {
+    return this.receiptsService.createTestReceiptForCashback();
+  }
+
   @ApiOperation({ summary: 'Получить все чеки', description: 'Возвращает список всех чеков.' })
   @ApiResponse({ status: 200, description: 'Список чеков' })
   @ApiResponse({ status: 401, description: 'Неавторизован' })

@@ -5,11 +5,12 @@ import { FnsAuthService } from './fns-auth.service';
 import { FnsCheckService } from './fns-check.service';
 import { FnsQueueService } from './fns-queue.service';
 import { FnsCashbackService } from './fns-cashback.service';
+import { CashbackModule } from '../cashback/cashback.module';
 import { PrismaService } from '../prisma.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, CashbackModule],
   controllers: [FnsController],
   providers: [
     FnsService,

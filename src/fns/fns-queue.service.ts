@@ -32,7 +32,6 @@ export class FnsQueueService {
             qrData: qrData as any,
             status: 'pending',
             attempts: 0,
-            promotionId, // Добавляем обязательное поле promotionId
           };
           
           if (customerId) {
@@ -55,12 +54,14 @@ export class FnsQueueService {
     }
   }
 
-  async addToQueue(qrData: VerifyReceiptDto, customerId?: number, promotionId?: string): Promise<string> {
+  async addToQueue(qrData: VerifyReceiptDto, customerId?: number): Promise<string> {
     this.logger.log(`Adding request to queue: ${JSON.stringify(qrData)}`);
 
     try {
       await this.checkDailyLimit();
 
+      const promotionId = 'default-promotion';
+      
       const request = await this.prisma.fnsRequest.create({
         data: {
           qrData: qrData as any,

@@ -42,7 +42,24 @@ export class UpdateOfferDto extends PartialType(OmitType(CreateOfferDto, ['condi
   })
   @IsOptional()
   @ValidateNested()
-  @Transform(({ value }) => JSON.parse(value))
+  @Transform(({ value }) => {
+    try {
+      if (typeof value === 'string') {
+        // Проверяем, является ли это JSON строкой
+        if (value.startsWith('{') && value.endsWith('}')) {
+          return JSON.parse(value);
+        }
+        // Если это не JSON, возвращаем как есть
+        return value;
+      }
+      if (typeof value === 'object' && value !== null) {
+        return value;
+      }
+      return value;
+    } catch (error) {
+      return value;
+    }
+  })
   @Type(() => UpdateOfferConditionDto)
   condition?: UpdateOfferConditionDto;
 }

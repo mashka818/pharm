@@ -99,8 +99,7 @@ export class FnsController {
     @Request() req: any,
   ) {
     const customerId = req.user?.id;
-    const promotionId = req.user?.promotionId;
-    return this.fnsService.verifyReceipt(verifyReceiptDto, customerId, promotionId);
+    return this.fnsService.verifyReceipt(verifyReceiptDto, customerId);
   }
 
   @Get('status/:requestId')
