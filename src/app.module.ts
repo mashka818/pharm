@@ -52,6 +52,6 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantMiddleware)
-      .forRoutes('receipt/scan-qr'); 
+      .forRoutes('fns/scan-qr'); 
   }
 }

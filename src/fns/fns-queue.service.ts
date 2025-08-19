@@ -60,15 +60,12 @@ export class FnsQueueService {
     try {
       await this.checkDailyLimit();
 
-      const promotionId = 'default-promotion';
-      
       const request = await this.prisma.fnsRequest.create({
         data: {
           qrData: qrData as any,
           status: 'pending',
           attempts: 0,
           customerId,
-          promotionId,
         },
       });
 
