@@ -44,6 +44,9 @@ export class FnsService {
       //   throw new BadRequestException('Invalid domain for this promotion');
       // }
 
+      // Проверяем повторное сканирование
+      const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
+      
       const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimitsForPromotion(
         customerId, 
         qrData, 
@@ -54,7 +57,9 @@ export class FnsService {
         return {
           requestId: null,
           status: 'rejected',
-          message: 'Cashback already received for this receipt in this network',
+          message: isRepeatedScan 
+            ? 'Данный чек уже был отсканирован ранее' 
+            : 'Cashback already received for this receipt in this network',
         };
       }
 
@@ -239,6 +244,41 @@ export class FnsService {
       }
     }
     
+    // Поддельные чеки не обрабатываются - выводится ошибка + уведомление админу
+    if (result.isFake) {
+      this.logger.warn(`Request ${requestId}: Receipt is fake, no receipt record will be created`);
+      
+      // Уведомляем администратора о поддельном чеке
+      if (fnsRequest?.promotionId && customerId) {
+        await this.createAdminNotification(
+          'fake_receipt',
+          'Обнаружен поддельный чек',
+          `Клиент попытался отсканировать поддельный чек. Request ID: ${requestId}`,
+          fnsRequest.promotionId,
+          customerId,
+          requestId
+        );
+      }
+      
+      await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
+        isReturn: false,
+        isFake: true,
+        fnsResponse: result,
+      });
+      return;
+    }
+
+    // Возвратные чеки не обрабатываются
+    if (result.isReturn) {
+      this.logger.warn(`Request ${requestId}: Receipt is return operation, no cashback awarded`);
+      await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
+        isReturn: true,
+        isFake: false,
+        fnsResponse: result,
+      });
+      return;
+    }
+    
     if (status === 'success' && result.isValid && !result.isReturn && !result.isFake) {
       // Начисляем кешбек только для валидных чеков покупки (не возврата)
       let cashbackAmount = 0;
@@ -313,22 +353,20 @@ export class FnsService {
         isReturn: false,
         isFake: false,
       });
-    } else if (status === 'rejected' || result.isReturn || result.isFake) {
-      // Отклоняем чек если он возвратный или поддельный
-      const rejectReason = result.isReturn ? 'return operation' : 
-                          result.isFake ? 'fake receipt' : 'validation failed';
-      this.logger.warn(`Request ${requestId} rejected: ${rejectReason}`);
+    } else if (status === 'rejected') {
+      // Отклоняем чек при ошибке валидации
+      this.logger.warn(`Request ${requestId} rejected: validation failed`);
       
       await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
-        isReturn: result.isReturn || false,
-        isFake: result.isFake || false,
+        isReturn: false,
+        isFake: false,
         fnsResponse: result,
       });
     } else if (status === 'failed') {
       this.logger.warn(`Request ${requestId} failed: processing error`);
       await this.fnsQueueService.updateRequestStatus(requestId, 'failed', {
         isReturn: false,
-        isFake: true,
+        isFake: false,
         fnsResponse: result,
       });
     } else {
@@ -465,28 +503,63 @@ export class FnsService {
         },
       });
 
-      // Создаем записи товаров из чека с детализацией кешбека
-      if (calculationResult && calculationResult.items && calculationResult.items.length > 0) {
-        const receiptProducts = await Promise.all(
-          calculationResult.items.map(async (item: any) => {
+      // Создаем записи товаров из чека ФНС
+      // ВАЖНО: сначала пытаемся найти товары в нашей базе, если не находим - все равно записываем информацию из чека
+      const receiptItems = this.parseReceiptItemsFromFns(receiptData);
+      const receiptProducts = await Promise.all(
+        receiptItems.map(async (fnsItem: any, index: number) => {
+          try {
+            // Пытаемся найти товар в нашей базе данных
+            const matchedProduct = await this.findProductInDatabase(fnsItem, promotionId);
+            const matchedOffer = calculationResult?.items?.[index]?.offerId;
+            const itemCashback = calculationResult?.items?.[index]?.cashbackAmount || 0;
+
+            return await this.prisma.receiptProduct.create({
+              data: {
+                receiptId: receipt.id,
+                productId: matchedProduct?.id || null, // null если товар не найден в нашей БД
+                offerId: matchedOffer || null,
+                cashback: itemCashback,
+                // Дополнительно сохраняем данные из ФНС для аудита
+                fnsProductName: fnsItem.name,
+                fnsProductPrice: fnsItem.price,
+                fnsProductQuantity: fnsItem.quantity,
+                fnsProductSum: fnsItem.sum,
+              },
+            });
+          } catch (error) {
+            this.logger.error(`Error creating receipt product for FNS item ${fnsItem.name}:`, error);
+            
+            // Если не удалось создать с productId, создаем без него но с данными ФНС
             try {
               return await this.prisma.receiptProduct.create({
                 data: {
                   receiptId: receipt.id,
-                  productId: item.productId,
-                  offerId: item.offerId,
-                  cashback: item.cashbackAmount,
+                  productId: null,
+                  offerId: null,
+                  cashback: 0,
+                  fnsProductName: fnsItem.name,
+                  fnsProductPrice: fnsItem.price,
+                  fnsProductQuantity: fnsItem.quantity,
+                  fnsProductSum: fnsItem.sum,
                 },
               });
-            } catch (error) {
-              this.logger.error(`Error creating receipt product for item ${item.productName}:`, error);
+            } catch (fallbackError) {
+              this.logger.error(`Failed to create receipt product even as fallback:`, fallbackError);
               return null;
             }
-          })
-        );
+          }
+        })
+      );
 
-        const successfulProducts = receiptProducts.filter(p => p !== null);
-        this.logger.log(`Created ${successfulProducts.length} receipt product records for receipt ${receipt.id}`);
+      const successfulProducts = receiptProducts.filter(p => p !== null);
+      this.logger.log(`Created ${successfulProducts.length} receipt product records for receipt ${receipt.id}`);
+      
+      const matchedProducts = successfulProducts.filter(p => p.productId !== null).length;
+      const unmatchedProducts = successfulProducts.length - matchedProducts;
+      
+      if (unmatchedProducts > 0) {
+        this.logger.warn(`${unmatchedProducts} products from FNS receipt could not be matched with local database for promotion ${promotionId}`);
       }
 
       // Получаем полную информацию о созданном чеке
@@ -532,6 +605,214 @@ export class FnsService {
     } catch (error) {
       this.logger.error('Error creating receipt record:', error);
       return null;
+    }
+  }
+
+  /**
+   * Парсинг товаров из ответа ФНС
+   */
+  private parseReceiptItemsFromFns(receiptData: any): any[] {
+    const items = receiptData?.items || receiptData?.products || receiptData?.document?.receipt?.items || [];
+    
+    return items.map((item: any) => ({
+      name: item.name || item.productName || item.text || '',
+      price: this.parsePrice(item.price || item.sum || item.amount || 0),
+      quantity: parseFloat(item.quantity || item.qty || 1),
+      sum: this.parsePrice(item.sum || item.total || item.amount || 0),
+      nds: item.nds || item.vat || null,
+      ndsSum: this.parsePrice(item.ndsSum || item.vatSum || 0),
+      paymentType: item.paymentType || null,
+      productType: item.productType || null,
+    }));
+  }
+
+  /**
+   * Поиск товара в локальной базе данных по данным из ФНС
+   */
+  private async findProductInDatabase(fnsItem: any, promotionId: string): Promise<any | null> {
+    try {
+      this.logger.debug(`Searching for product in database: ${fnsItem.name}`);
+      
+      // Нормализуем название товара для поиска
+      const normalizedName = this.normalizeProductName(fnsItem.name);
+      
+      // Поиск по точному совпадению названия
+      let product = await this.prisma.product.findFirst({
+        where: {
+          promotionId,
+          name: {
+            equals: fnsItem.name,
+            mode: 'insensitive',
+          },
+        },
+        include: {
+          brand: true,
+        },
+      });
+
+      // Если не найден по точному совпадению, ищем по частичному совпадению
+      if (!product) {
+        product = await this.prisma.product.findFirst({
+          where: {
+            promotionId,
+            name: {
+              contains: normalizedName,
+              mode: 'insensitive',
+            },
+          },
+          include: {
+            brand: true,
+          },
+        });
+      }
+
+      // Если все еще не найден, ищем по ключевым словам
+      if (!product && normalizedName.length > 3) {
+        const keywords = normalizedName.split(' ').filter(word => word.length > 2);
+        
+        for (const keyword of keywords.slice(0, 3)) { // Берем первые 3 ключевых слова
+          product = await this.prisma.product.findFirst({
+            where: {
+              promotionId,
+              name: {
+                contains: keyword,
+                mode: 'insensitive',
+              },
+            },
+            include: {
+              brand: true,
+            },
+          });
+          
+          if (product) break;
+        }
+      }
+
+      if (product) {
+        this.logger.debug(`Found matching product: ${product.name} (ID: ${product.id})`);
+      } else {
+        this.logger.debug(`No matching product found for: ${fnsItem.name}`);
+      }
+
+      return product;
+    } catch (error) {
+      this.logger.error(`Error searching for product in database:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Нормализация названия товара для поиска
+   */
+  private normalizeProductName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^\w\s]/gi, '') // Убираем знаки препинания
+      .replace(/\s+/g, ' ') // Заменяем множественные пробелы одним
+      .trim();
+  }
+
+  /**
+   * Парсинг цены из различных форматов
+   */
+  private parsePrice(price: any): number {
+    if (typeof price === 'number') {
+      return price;
+    }
+    
+    if (typeof price === 'string') {
+      const numericPrice = parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.'));
+      return isNaN(numericPrice) ? 0 : Math.round(numericPrice * 100); // Переводим в копейки
+    }
+    
+    return 0;
+  }
+
+  /**
+   * Создание уведомления для администратора
+   */
+  private async createAdminNotification(
+    type: 'suspicious_activity' | 'repeated_scan' | 'fake_receipt' | 'system_error',
+    title: string,
+    message: string,
+    promotionId: string,
+    customerId?: number,
+    fnsRequestId?: string,
+    metadata?: any
+  ) {
+    try {
+      await this.prisma.adminNotification.create({
+        data: {
+          type,
+          title,
+          message,
+          promotionId,
+          customerId,
+          fnsRequestId,
+          metadata,
+        },
+      });
+      
+      this.logger.log(`Created admin notification: ${title} for promotion ${promotionId}`);
+    } catch (error) {
+      this.logger.error('Error creating admin notification:', error);
+    }
+  }
+
+  /**
+   * Проверка повторного сканирования и уведомление администратора
+   */
+  async checkForRepeatedScan(qrData: any, customerId: number, promotionId: string): Promise<boolean> {
+    try {
+      // Проверяем, сканировал ли клиент этот чек раньше
+      const existingRequest = await this.prisma.fnsRequest.findFirst({
+        where: {
+          customerId,
+          qrData: {
+            path: ['fn'],
+            equals: qrData.fn,
+          },
+          AND: [
+            {
+              qrData: {
+                path: ['fd'],
+                equals: qrData.fd,
+              },
+            },
+            {
+              qrData: {
+                path: ['fp'],
+                equals: qrData.fp,
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          status: true,
+        },
+      });
+
+      if (existingRequest) {
+        // Уведомляем администратора о повторном сканировании
+        await this.createAdminNotification(
+          'repeated_scan',
+          'Повторное сканирование чека',
+          `Клиент ${customerId} повторно сканирует чек. Первое сканирование: ${existingRequest.createdAt.toISOString()}, статус: ${existingRequest.status}`,
+          promotionId,
+          customerId,
+          existingRequest.id,
+          { originalRequestId: existingRequest.id, qrData }
+        );
+        
+        return true; // Это повторное сканирование
+      }
+
+      return false; // Первое сканирование
+    } catch (error) {
+      this.logger.error('Error checking for repeated scan:', error);
+      return false;
     }
   }
 

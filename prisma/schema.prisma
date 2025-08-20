@@ -43,7 +43,8 @@ model Promotion {
   offers      Offer[]
   products    Product[]
   receipts    Receipt[]
-  cashbacks   Cashback[]    // Новая связь
+  cashbacks   Cashback[]           // Новая связь
+  notifications AdminNotification[] // Уведомления
 
   @@map("promotions")
 }
@@ -101,6 +102,13 @@ model Offer {
   conditionId     Int?             @unique
   date_to         DateTime
   date_from       DateTime
+  
+  // Поля для розыгрышей
+  isLottery       Boolean          @default(false)    // Участвует ли в розыгрыше
+  lotteryPrize    String?                            // Описание приза
+  lotteryWinners  Int?                               // Количество победителей
+  lotteryEndDate  DateTime?                          // Дата окончания розыгрыша
+  
   condition       OfferCondition?  @relation(fields: [conditionId], references: [id])
   promotion       Promotion        @relation(fields: [promotionId], references: [promotionId])
   cashbackItems   CashbackItem[]   // Новая связь
@@ -167,6 +175,7 @@ model Customer {
   receipts              Receipt[]
   withdrawalVariants    WithdrawalVariant[]
   cashbacks             Cashback[]         // Новая связь
+  notifications         AdminNotification[] // Уведомления связанные с клиентом
 
   @@unique([email, promotionId])
   @@map("customers")
@@ -222,12 +231,19 @@ model Receipt {
 
 model ReceiptProduct {
   id        Int     @id @default(autoincrement())
-  productId Int
+  productId Int?    // nullable - товар может не быть найден в нашей БД
   offerId   Int?
   cashback  Int
   receiptId Int
+  
+  // Данные из ФНС для аудита и сопоставления
+  fnsProductName     String?
+  fnsProductPrice    Int?     // цена за единицу в копейках
+  fnsProductQuantity Decimal? @db.Decimal(10,3)
+  fnsProductSum      Int?     // общая стоимость позиции в копейках
+  
   offer     Offer?  @relation(fields: [offerId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id])
   Receipt   Receipt @relation(fields: [receiptId], references: [id])
 
   @@map("receipt_products")
@@ -255,6 +271,7 @@ model FnsRequest {
   promotion       Promotion    @relation(fields: [promotionId], references: [promotionId])
   receipt         Receipt?     @relation(fields: [receiptId], references: [id])
   cashbacks       Cashback[]   // Новая связь
+  notifications   AdminNotification[] // Уведомления связанные с запросом
 
   @@map("fns_requests")
 }
@@ -382,6 +399,33 @@ enum ReceiptStaus {
   rejected
   processing
   failed
+}
+
+// Уведомления для администраторов
+model AdminNotification {
+  id            String                   @id @default(uuid())
+  type          AdminNotificationType
+  title         String
+  message       String
+  promotionId   String
+  customerId    Int?
+  fnsRequestId  String?
+  metadata      Json?
+  isRead        Boolean                  @default(false)
+  createdAt     DateTime                 @default(now())
+  
+  promotion     Promotion                @relation(fields: [promotionId], references: [promotionId])
+  customer      Customer?                @relation(fields: [customerId], references: [id])
+  fnsRequest    FnsRequest?              @relation(fields: [fnsRequestId], references: [id])
+  
+  @@map("admin_notifications")
+}
+
+enum AdminNotificationType {
+  suspicious_activity
+  repeated_scan
+  fake_receipt
+  system_error
 }
 
 enum CashbackStatus {

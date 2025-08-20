@@ -36,13 +36,13 @@ export class CreateReceiptDto {
   @IsNumber()
   price: number;
 
-  @ApiProperty({
-    description: 'Общая сумма кэшбека в копейках',
+  @ApiPropertyOptional({
+    description: 'Общая сумма кэшбека в копейках (рассчитывается автоматически, можно не указывать)',
     example: 1500,
-    required: true,
   })
+  @IsOptional()
   @IsNumber()
-  cashback: number;
+  cashback?: number;
 
   @ApiProperty({
     description: 'Статус чека',
@@ -71,7 +71,7 @@ export class CreateReceiptDto {
 
   @ApiProperty({
     description: 'ID промоакции',
-    example: 'r-pharm',
+    example: 'x-pharm',
     required: true,
   })
   @IsString()

@@ -71,7 +71,7 @@ export class CashbackService {
    */
   async awardCashback(
     customerId: number,
-    fnsRequestId: string,
+    fnsRequestId: string | null,
     receiptId: number | null,
     promotionId: string,
     calculationResult: CashbackCalculationResult
@@ -115,14 +115,16 @@ export class CashbackService {
         },
       });
 
-      // 3. Обновляем статус FnsRequest
-      await tx.fnsRequest.update({
-        where: { id: fnsRequestId },
-        data: {
-          cashbackAmount: calculationResult.totalCashback,
-          cashbackAwarded: true,
-        },
-      });
+      // 3. Обновляем статус FnsRequest (только если есть fnsRequestId)
+      if (fnsRequestId) {
+        await tx.fnsRequest.update({
+          where: { id: fnsRequestId },
+          data: {
+            cashbackAmount: calculationResult.totalCashback,
+            cashbackAwarded: true,
+          },
+        });
+      }
 
       this.logger.log(`Successfully awarded cashback ${calculationResult.totalCashback} to customer ${customerId}`);
       return { cashbackId: cashback.id, amount: calculationResult.totalCashback };
@@ -199,6 +201,8 @@ export class CashbackService {
    * Получение истории кэшбека для администратора (за текущий день)
    */
   async getTodaysCashbackHistory(promotionId?: string) {
+    this.logger.log(`Getting today's cashback history for promotion: ${promotionId || 'all'}`);
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -214,9 +218,10 @@ export class CashbackService {
 
     if (promotionId) {
       whereClause.promotionId = promotionId;
+      this.logger.log(`Filtering by promotion: ${promotionId}`);
     }
 
-    return await this.prisma.cashback.findMany({
+    const cashbacks = await this.prisma.cashback.findMany({
       where: whereClause,
       include: {
         customer: {
@@ -262,6 +267,19 @@ export class CashbackService {
         createdAt: 'desc',
       },
     });
+
+    this.logger.log(`Found ${cashbacks.length} cashback records for today`);
+    
+    // Логируем детали для отладки
+    if (promotionId && cashbacks.length === 0) {
+      // Проверяем, есть ли вообще кешбеки для этой промоакции
+      const totalCashbacks = await this.prisma.cashback.count({
+        where: { promotionId }
+      });
+      this.logger.warn(`No cashbacks found for promotion ${promotionId} today, but found ${totalCashbacks} total cashbacks for this promotion`);
+    }
+
+    return cashbacks;
   }
 
   /**
@@ -486,7 +504,45 @@ export class CashbackService {
    * Парсинг товаров из чека
    */
   private parseReceiptItems(receiptData: any): ReceiptItem[] {
-    const items = receiptData?.items || receiptData?.products || receiptData?.document?.receipt?.items || [];
+    this.logger.log('Parsing receipt items from:', receiptData);
+    
+    // Если это данные из ФНС (есть поле items)
+    if (receiptData?.items) {
+      this.logger.log(`Parsing ${receiptData.items.length} FNS items`);
+      return receiptData.items.map((item: any) => ({
+        name: this.normalizeProductName(item.name || item.productName || item.text || ''),
+        sku: item.sku || item.productCode || item.code || null,
+        price: this.parsePrice(item.price || item.sum || item.amount || 0),
+        quantity: parseInt(item.quantity || item.qty || 1),
+        total: this.parsePrice(item.sum || item.total || item.amount || 0),
+      }));
+    }
+
+    // Если это данные из БД (есть поле products с вложенными объектами)
+    if (receiptData?.products) {
+      this.logger.log(`Parsing ${receiptData.products.length} DB products`);
+      return receiptData.products.map((receiptProduct: any) => {
+        const product = receiptProduct.product;
+        // Используем цену из общего чека, деленную на количество товаров
+        const totalPrice = receiptData.price || 1000;
+        const itemCount = receiptData.products.length;
+        const itemPrice = Math.round(totalPrice / itemCount);
+        
+        this.logger.log(`Product: ${product?.name}, itemPrice: ${itemPrice}`);
+        
+        return {
+          name: this.normalizeProductName(product?.name || 'Unknown Product'),
+          sku: product?.sku || null,
+          price: itemPrice,
+          quantity: 1,
+          total: itemPrice,
+        };
+      });
+    }
+
+    // Fallback для других форматов
+    const items = receiptData?.document?.receipt?.items || [];
+    this.logger.log(`Parsing ${items.length} fallback items`);
     
     return items.map((item: any) => ({
       name: this.normalizeProductName(item.name || item.productName || item.text || ''),

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateReceiptProductDto {
   @ApiProperty({
@@ -18,11 +18,12 @@ export class CreateReceiptProductDto {
   @IsNumber()
   offerId?: number;
 
-  @ApiProperty({
-    description: 'Сумма кэшбека за этот продукт в копейках',
+  @ApiPropertyOptional({
+    description: 'Сумма кэшбека за этот продукт в копейках (рассчитывается автоматически, можно не указывать)',
     example: 100,
-    required: true,
   })
+  @IsOptional()
   @IsNumber()
-  cashback: number;
+  @Min(0)
+  cashback?: number;
 }

@@ -14,17 +14,18 @@ export class GetOneOfferService {
       },
     });
 
-    const offerWithStringDate = {
-      ...offer,
-      date_from: offer.date_from.toISOString(),
-      date_to: offer.date_to.toISOString(),
-    };
-
     if (!offer) {
       throw new NotFoundException(`Offer not found`);
     }
 
-    return offerWithStringDate;
+    const offerWithStringDate = {
+      ...offer,
+      date_from: offer.date_from.toISOString(),
+      date_to: offer.date_to.toISOString(),
+      lotteryEndDate: offer.lotteryEndDate ? offer.lotteryEndDate.toISOString() : undefined,
+    };
+
+    return offerWithStringDate as any;
   }
 
   async getOneWithProducts(id: number): Promise<ResponseOfferDtoWithProducts> {
@@ -52,6 +53,7 @@ export class GetOneOfferService {
       ...offer,
       date_from: offer.date_from.toISOString(),
       date_to: offer.date_to.toISOString(),
+      lotteryEndDate: offer.lotteryEndDate ? offer.lotteryEndDate.toISOString() : undefined,
     };
 
     const products = offerWithStringDate.products.map((productOffer) => productOffer.product);
@@ -59,6 +61,6 @@ export class GetOneOfferService {
     return {
       ...offerWithStringDate,
       products,
-    };
+    } as any;
   }
 }

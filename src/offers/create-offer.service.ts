@@ -1,4 +1,4 @@
-import { BadRequestException, forwardRef, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { OffersConditionsService } from 'src/offers-conditions/offers-conditions.service';
@@ -10,6 +10,8 @@ import { GetOneOfferService } from './get-one-offer.service';
 
 @Injectable()
 export class CreateOfferService {
+  private readonly logger = new Logger(CreateOfferService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly offersConditionsService: OffersConditionsService,
@@ -24,9 +26,14 @@ export class CreateOfferService {
     createOfferDto: CreateOfferDto,
     bannerImage?: Express.Multer.File,
   ): Promise<ResponseOfferDto> {
-    const { productIds, condition, ...offerData } = createOfferDto;
+    const { productIds, condition, isLottery, lotteryPrize, lotteryWinners, lotteryEndDate, ...offerData } = createOfferDto;
+
+    this.logger.log(`Creating offer for promotion ${offerData.promotionId} with ${productIds.length} products`);
 
     await this.promotionsService.findOne(offerData.promotionId);
+
+    // Валидация принадлежности товаров к подсети ПЕРЕД созданием предложения
+    await this.validateProductsForPromotion(productIds, offerData.promotionId);
 
     if (!bannerImage) {
       throw new BadRequestException('add banner image to request');
@@ -34,8 +41,22 @@ export class CreateOfferService {
 
     const bannerName = await this.filesService.createFile(bannerImage);
 
+    // Валидация полей розыгрыша
+    if (isLottery) {
+      if (!lotteryPrize || !lotteryWinners || !lotteryEndDate) {
+        throw new BadRequestException('For lottery offers, lotteryPrize, lotteryWinners, and lotteryEndDate are required');
+      }
+    }
+
     const offer = await this.prisma.offer.create({
-      data: { ...offerData, banner_image: bannerName },
+      data: { 
+        ...offerData, 
+        banner_image: bannerName,
+        isLottery: isLottery || false,
+        lotteryPrize: isLottery ? lotteryPrize : null,
+        lotteryWinners: isLottery ? lotteryWinners : null,
+        lotteryEndDate: isLottery ? new Date(lotteryEndDate) : null,
+      },
     });
 
     if (condition) {
@@ -53,6 +74,68 @@ export class CreateOfferService {
 
     await this.productOfferService.createProductsRelation(productIds, offer.id);
 
+    this.logger.log(`Successfully created offer ${offer.id} for promotion ${offerData.promotionId}`);
     return await this.getOneOfferService.getOneWithProducts(offer.id);
+  }
+
+  /**
+   * Валидация товаров для промоакции - проверяет, что все товары принадлежат к указанной подсети
+   */
+  private async validateProductsForPromotion(productIds: number[], promotionId: string) {
+    this.logger.log(`Validating ${productIds.length} products for promotion ${promotionId}`);
+
+    if (!productIds || productIds.length === 0) {
+      throw new BadRequestException('At least one product is required for offer');
+    }
+
+    // Проверяем товары из других подсетей
+    const invalidProducts = await this.prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+        promotionId: { not: promotionId },
+      },
+      select: { 
+        id: true, 
+        name: true, 
+        promotionId: true,
+        brand: {
+          select: {
+            name: true,
+            promotionId: true,
+          }
+        }
+      },
+    });
+
+    if (invalidProducts.length > 0) {
+      const productInfo = invalidProducts.map(p => 
+        `"${p.name}" (ID: ${p.id}, подсеть: ${p.promotionId}, бренд: ${p.brand?.name})`
+      ).join(', ');
+      
+      throw new BadRequestException(
+        `Товары из другой подсети не могут быть добавлены в предложение для подсети ${promotionId}. ` +
+        `Некорректные товары: ${productInfo}`
+      );
+    }
+
+    // Проверяем существование всех товаров
+    const existingProducts = await this.prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+        promotionId,
+      },
+      select: { id: true },
+    });
+
+    const existingProductIds = existingProducts.map(p => p.id);
+    const missingProductIds = productIds.filter(id => !existingProductIds.includes(id));
+
+    if (missingProductIds.length > 0) {
+      throw new BadRequestException(
+        `Товары с ID ${missingProductIds.join(', ')} не найдены в подсети ${promotionId}`
+      );
+    }
+
+    this.logger.log(`All ${productIds.length} products validated successfully for promotion ${promotionId}`);
   }
 }

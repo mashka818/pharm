@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Request } from '@nestjs/common';
 import { ReceiptsService } from './receipts.service';
 import { CreateReceiptDto } from './dto/create-receipt.dto';
 import { UpdateReceiptDto } from './dto/update-receipt.dto';
 import { ApiOperation, ApiResponse, ApiBody, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
 @ApiBearerAuth()
 @ApiTags('Receipts')
@@ -10,31 +12,26 @@ import { ApiOperation, ApiResponse, ApiBody, ApiTags, ApiBearerAuth } from '@nes
 export class ReceiptsController {
   constructor(private readonly receiptsService: ReceiptsService) {}
 
-  @ApiOperation({ summary: 'Создать чек', description: 'Создаёт новый чек.' })
-  @ApiResponse({ status: 201, description: 'Чек успешно создан' })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
-  @ApiResponse({ status: 409, description: 'Чек с такими параметрами уже существует' })
-  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
-  @ApiBody({ type: CreateReceiptDto })
   @Post()
-  create(@Body() createReceiptDto: CreateReceiptDto) {
-    return this.receiptsService.create(createReceiptDto);
+  @ApiOperation({ 
+    summary: 'Создать чек',
+    description: 'Создает чек с автоматическим расчетом и начислением кешбека'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Чек создан, кешбек рассчитан и начислен' 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Ошибка создания чека' 
+  })
+  async create(@Body() createReceiptDto: CreateReceiptDto) {
+    return this.receiptsService.createReceiptWithCashback(createReceiptDto);
   }
 
-  @ApiOperation({ 
-    summary: 'Создать тестовый чек для проверки кэшбека', 
-    description: 'Создаёт тестовый чек с автоматическим расчетом кэшбека на основе существующих акций и продуктов.' 
-  })
-  @ApiResponse({ status: 201, description: 'Тестовый чек успешно создан' })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
-  @Post('test-cashback')
-  createTestReceiptForCashback() {
-    return this.receiptsService.createTestReceiptForCashback();
-  }
+
+
+
 
   @ApiOperation({ summary: 'Получить все чеки', description: 'Возвращает список всех чеков.' })
   @ApiResponse({ status: 200, description: 'Список чеков' })
