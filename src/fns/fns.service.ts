@@ -280,7 +280,49 @@ export class FnsService {
     }
     
     if (status === 'success' && result.isValid && !result.isReturn && !result.isFake) {
-      // Начисляем кешбек только для валидных чеков покупки (не возврата)
+      // Проверяем ИНН чека - только чеки нашей организации принимаются
+      const receiptInn = result.receiptData?.inn || result.receiptData?.user?.inn;
+      const organizationInn = process.env.ORGANIZATION_INN;
+      
+      if (!receiptInn) {
+        this.logger.warn(`Request ${requestId}: No INN found in receipt data`);
+        await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
+          isReturn: false,
+          isFake: false,
+          fnsResponse: result,
+          rejectionReason: 'NO_INN_IN_RECEIPT',
+        });
+        return;
+      }
+      
+      if (receiptInn !== organizationInn) {
+        this.logger.warn(`Request ${requestId}: INN mismatch. Receipt INN: ${receiptInn}, Organization INN: ${organizationInn}`);
+        
+        // Уведомляем администратора о чеке с неправильным ИНН
+        if (fnsRequest?.promotionId && customerId) {
+          await this.createAdminNotification(
+            'suspicious_activity',
+            'Чек с неправильным ИНН',
+            `Клиент отсканировал чек из другой организации. ИНН чека: ${receiptInn}, ожидаемый ИНН: ${organizationInn}. Request ID: ${requestId}`,
+            fnsRequest.promotionId,
+            customerId,
+            requestId,
+            { receiptInn, expectedInn: organizationInn, qrData: result.qrData }
+          );
+        }
+        
+        await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
+          isReturn: false,
+          isFake: false,
+          fnsResponse: result,
+          rejectionReason: 'WRONG_ORGANIZATION_INN',
+        });
+        return;
+      }
+      
+      this.logger.log(`Request ${requestId}: INN validated successfully (${receiptInn})`);
+      
+      // Начисляем кешбек только для валидных чеков покупки (не возврата) нашей организации
       let cashbackAmount = 0;
       let cashbackId = null;
       
@@ -313,6 +355,8 @@ export class FnsService {
               calculationResult.totalCashback,
               calculationResult
             );
+            
+            this.logger.log(`Receipt record created for organization INN ${receiptInn}, amount: ${result.receiptData?.total || 'unknown'}, items: ${result.receiptData?.items?.length || 0}`);
             
             const awardResult = await this.cashbackService.awardCashback(
               customerId,
