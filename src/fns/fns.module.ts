@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { FnsController } from './fns.controller';
 import { AdminNotificationController } from './admin-notification.controller';
+import { AdminFnsController } from './admin-fns.controller';
 import { FnsService } from './fns.service';
 import { FnsAuthService } from './fns-auth.service';
 import { FnsCheckService } from './fns-check.service';
@@ -13,7 +14,7 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [AuthModule, CashbackModule],
-  controllers: [FnsController, AdminNotificationController],
+  controllers: [FnsController, AdminNotificationController, AdminFnsController],
   providers: [
     FnsService,
     FnsAuthService,
