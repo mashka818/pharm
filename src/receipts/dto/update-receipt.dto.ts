@@ -79,7 +79,7 @@ export class UpdateReceiptDto {
 
   @ApiPropertyOptional({
     description: 'ID промоакции',
-    example: 'r-pharm',
+    example: 'x-pharm',
   })
   @IsOptional()
   @IsString()
