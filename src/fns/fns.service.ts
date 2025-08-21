@@ -281,8 +281,18 @@ export class FnsService {
     
     if (status === 'success' && result.isValid && !result.isReturn && !result.isFake) {
       // Проверяем ИНН чека - только чеки нашей организации принимаются
-      const receiptInn = result.receiptData?.inn || result.receiptData?.user?.inn;
+      const receiptInn = result.receiptData?.inn || 
+                         result.receiptData?.user?.inn || 
+                         result.receiptData?.userInn;
       const organizationInn = process.env.ORGANIZATION_INN;
+      
+      // Логируем структуру receiptData для отладки
+      this.logger.debug(`Receipt data structure: ${JSON.stringify({
+        inn: result.receiptData?.inn,
+        userInn: result.receiptData?.userInn,
+        user: result.receiptData?.user,
+        foundInn: receiptInn
+      })}`);
       
       if (!receiptInn) {
         this.logger.warn(`Request ${requestId}: No INN found in receipt data`);
