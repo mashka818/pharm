@@ -281,17 +281,22 @@ export class FnsService {
     
     if (status === 'success' && result.isValid && !result.isReturn && !result.isFake) {
       // Проверяем ИНН чека - только чеки нашей организации принимаются
-      const receiptInn = result.receiptData?.inn || 
+      const receiptInn = (result.receiptData?.inn || 
                          result.receiptData?.user?.inn || 
-                         result.receiptData?.userInn;
-      const organizationInn = process.env.ORGANIZATION_INN;
+                         result.receiptData?.userInn ||
+                         result.receiptData?.content?.inn ||
+                         result.receiptData?.content?.userInn)?.toString().trim();
+      const organizationInn = process.env.ORGANIZATION_INN?.toString().trim();
       
       // Логируем структуру receiptData для отладки
       this.logger.debug(`Receipt data structure: ${JSON.stringify({
-        inn: result.receiptData?.inn,
-        userInn: result.receiptData?.userInn,
-        user: result.receiptData?.user,
-        foundInn: receiptInn
+        'receiptData.inn': result.receiptData?.inn,
+        'receiptData.userInn': result.receiptData?.userInn,
+        'receiptData.content.inn': result.receiptData?.content?.inn,
+        'receiptData.content.userInn': result.receiptData?.content?.userInn,
+        'receiptData.user': result.receiptData?.user,
+        foundInn: receiptInn,
+        organizationInn: organizationInn
       })}`);
       
       if (!receiptInn) {
