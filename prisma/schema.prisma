@@ -67,12 +67,10 @@ model Product {
   id              Int              @id @default(autoincrement())
   name            String
   sku             String
-  fixCashback     Int?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   brandId         Int
   promotionId     String
-  cashbackType    CashbackType?
   offers          ProductOffer[]
   brand           Brand            @relation(fields: [brandId], references: [id])
   promotion       Promotion        @relation(fields: [promotionId], references: [promotionId])
@@ -244,7 +242,7 @@ model ReceiptProduct {
   
   offer     Offer?  @relation(fields: [offerId], references: [id])
   product   Product? @relation(fields: [productId], references: [id])
-  Receipt   Receipt @relation(fields: [receiptId], references: [id])
+  Receipt   Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
 
   @@map("receipt_products")
 }
@@ -269,7 +267,7 @@ model FnsRequest {
   promotionId     String
   customer        Customer?    @relation(fields: [customerId], references: [id])
   promotion       Promotion    @relation(fields: [promotionId], references: [promotionId])
-  receipt         Receipt?     @relation(fields: [receiptId], references: [id])
+  receipt         Receipt?     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   cashbacks       Cashback[]   // Новая связь
   notifications   AdminNotification[] // Уведомления связанные с запросом
 
@@ -299,9 +297,9 @@ model Cashback {
   customerId    Int
   customer      Customer         @relation(fields: [customerId], references: [id])
   receiptId     Int?
-  receipt       Receipt?         @relation(fields: [receiptId], references: [id])
+  receipt       Receipt?         @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   fnsRequestId  String?
-  fnsRequest    FnsRequest?      @relation(fields: [fnsRequestId], references: [id])
+  fnsRequest    FnsRequest?      @relation(fields: [fnsRequestId], references: [id], onDelete: Cascade)
   promotionId   String
   promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
   

@@ -17,23 +17,7 @@ export class CreateProductDto {
   @IsString()
   sku: string;
 
-  @ApiProperty({
-    description: 'Фиксированный кешбэк продукта',
-    example: '30',
-    required: false,
-  })
-  @IsOptional()
-  @IsNumber()
-  fixCashback?: number;
 
-  @ApiProperty({
-    description: 'Тип кешбэка продукта',
-    example: 'percent/amount',
-    required: false,
-  })
-  @IsOptional()
-  @IsIn(['percent', 'amount'])
-  cashbackType?: TCashbackType;
 
   @ApiProperty({
     description: 'Идентификатор бренда продукта (нельзя изменить)',
@@ -43,5 +27,3 @@ export class CreateProductDto {
   @IsNumber()
   brandId: number;
 }
-
-type TCashbackType = 'percent' | 'amount';

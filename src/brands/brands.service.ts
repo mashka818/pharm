@@ -122,40 +122,9 @@ export class BrandsService {
   async getAllBrandsByPromotionIdWithRange(promotionId: string): Promise<PromotionBrandDto[]> {
     const brands = await this.getAllBrandsByPromotionId(promotionId);
     return brands.map((brand) => {
-      let minAmount = Infinity;
-      let maxAmount = 0;
-      let minPercent = Infinity;
-      let maxPercent = 0;
-      brand.products.forEach((product) => {
-        if (product.cashbackType === 'amount') {
-          if (product.fixCashback < minAmount) {
-            minAmount = product.fixCashback;
-          }
-          if (product.fixCashback > maxAmount) {
-            maxAmount = product.fixCashback;
-          }
-        } else {
-          if (product.fixCashback < minPercent) {
-            minPercent = product.fixCashback;
-          }
-          if (product.fixCashback > maxPercent) {
-            maxPercent = product.fixCashback;
-          }
-        }
-      });
+      // TODO: Логика диапазонов кешбека теперь рассчитывается через offers, а не fixCashback продуктов
+      // Возвращаем брэнды без диапазонов кешбека пока не реализована новая логика
       const { products, ...restBrand } = brand;
-      if (maxAmount > 0) {
-        restBrand['amount'] = {
-          min: minAmount,
-          max: maxAmount,
-        };
-      }
-      if (maxPercent > 0) {
-        restBrand['percent'] = {
-          min: minPercent,
-          max: maxPercent,
-        };
-      }
       return restBrand;
     });
   }
@@ -163,7 +132,17 @@ export class BrandsService {
   async getAllBrandsByPromotionId(promotionId: string): Promise<FullBrandDto[]> {
     return await this.prisma.brand.findMany({
       where: { promotionId },
-      include: { products: { where: { fixCashback: { not: null } } } },
+      include: { 
+        products: {
+          include: {
+            offers: {
+              include: {
+                offer: true
+              }
+            }
+          }
+        } 
+      },
     });
   }
 

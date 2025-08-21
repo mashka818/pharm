@@ -589,14 +589,8 @@ export class CashbackService {
         }
       }
 
-      // Если товар не подошел под акции, проверяем фиксированный кешбек
-      if (!bestMatch) {
-        const productCashback = await this.tryMatchWithProductCashback(receiptItem, promotionId);
-        if (productCashback) {
-          bestMatch = productCashback;
-          this.logger.log(`Item "${receiptItem.name}" matched with product cashback: ${productCashback.cashbackAmount}`);
-        }
-      }
+      // Кешбек начисляется ТОЛЬКО через акции (offers)
+      // Товары без акций не получают кешбек
 
       if (bestMatch) {
         result.items.push(bestMatch);
@@ -668,37 +662,7 @@ export class CashbackService {
     };
   }
 
-  /**
-   * Попытка найти фиксированный кэшбек товара
-   */
-  private async tryMatchWithProductCashback(
-    receiptItem: ReceiptItem,
-    promotionId?: string
-  ): Promise<CashbackItemCalculation | null> {
-    // Ищем товар по SKU или названию в рамках конкретной промо-акции
-    const product = await this.findProductBySku(receiptItem.sku, promotionId) || 
-                   await this.findProductByName(receiptItem.name, promotionId);
 
-    if (!product || !product.fixCashback || !product.cashbackType) {
-      return null;
-    }
-
-    const cashbackAmount = product.cashbackType === 'amount' 
-      ? product.fixCashback 
-      : Math.round((receiptItem.total * product.fixCashback) / 100);
-
-    return {
-      productName: receiptItem.name,
-      productSku: receiptItem.sku,
-      quantity: receiptItem.quantity,
-      itemPrice: receiptItem.price,
-      totalPrice: receiptItem.total,
-      cashbackAmount,
-      cashbackType: product.cashbackType,
-      cashbackRate: product.fixCashback,
-      productId: product.id,
-    };
-  }
 
   /**
    * Проверка соответствия товара продукту
