@@ -35,7 +35,7 @@ export class ProductsService {
   async update(id: number, updateProductDto: UpdateProductDto): Promise<UpdateProductDto> {
     await this.getOne(id);
 
-    const { promotionId, brandId, ...restProduct } = updateProductDto;
+    const { id: dtoId, promotionId, brandId, ...restProduct } = updateProductDto;
 
     return this.prisma.product.update({
       where: { id },

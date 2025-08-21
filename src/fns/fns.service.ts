@@ -343,6 +343,9 @@ export class FnsService {
       
       if (customerId && fnsRequest?.promotionId) {
         try {
+          // Проверяем принадлежность клиента к подсети
+          await this.validateCustomerForPromotion(customerId, fnsRequest.promotionId);
+          
           // Используем новую систему кэшбека
           const calculationResult = await this.cashbackService.calculateCashback(
             result.receiptData, 
@@ -548,15 +551,23 @@ export class FnsService {
     try {
       this.logger.log(`Creating receipt record for customer ${customerId}, promotion ${promotionId}, cashback: ${cashback}`);
       
-      // Создаем запись чека
+      // Создаем запись чека  
+      const receiptDate = receiptData.dateTime || receiptData.content?.dateTime || receiptData.date || receiptData.content?.date;
+      const fiscalNumber = receiptData.fiscalDocumentNumber || receiptData.content?.fiscalDocumentNumber || receiptData.fd;
+      const totalSum = receiptData.totalSum || receiptData.content?.totalSum || receiptData.sum || receiptData.content?.sum;
+      const address = receiptData.retailPlace || receiptData.content?.retailPlace || receiptData.retailPlaceAddress || receiptData.content?.retailPlaceAddress || receiptData.address || 'Неизвестно';
+      
+      // Конвертируем timestamp в дату
+      const parsedDate = receiptDate ? (typeof receiptDate === 'number' ? new Date(receiptDate * 1000) : new Date(receiptDate)) : new Date();
+      
       const receipt = await this.prisma.receipt.create({
         data: {
-          date: new Date(receiptData.dateTime || receiptData.date),
-          number: parseInt(receiptData.fiscalDocumentNumber || receiptData.fd),
-          price: parseInt(receiptData.totalSum || receiptData.sum),
+          date: parsedDate,
+          number: parseInt(fiscalNumber) || 0,
+          price: parseInt(totalSum) || 0,
           cashback,
           status: 'success',
-          address: receiptData.retailPlace || receiptData.retailPlaceAddress || 'Неизвестно',
+          address,
           promotionId,
           customerId,
         },
@@ -873,6 +884,30 @@ export class FnsService {
       this.logger.error('Error checking for repeated scan:', error);
       return false;
     }
+  }
+
+  /**
+   * Проверка принадлежности клиента к подсети промо-акции
+   */
+  private async validateCustomerForPromotion(customerId: number, promotionId: string) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true, promotionId: true, name: true, surname: true },
+    });
+
+    if (!customer) {
+      throw new Error(`Customer ${customerId} not found`);
+    }
+
+    // Проверяем, что клиент принадлежит к той же подсети
+    if (customer.promotionId !== promotionId) {
+      this.logger.warn(`Customer ${customerId} belongs to promotion ${customer.promotionId}, but trying to scan receipt for promotion ${promotionId}`);
+      throw new Error(
+        `Клиент принадлежит к подсети ${customer.promotionId}, но пытается отсканировать чек для подсети ${promotionId}. Сканирование чеков возможно только в рамках вашей подсети.`
+      );
+    }
+
+    this.logger.log(`Customer ${customerId} validation passed for promotion ${promotionId}`);
   }
 
 

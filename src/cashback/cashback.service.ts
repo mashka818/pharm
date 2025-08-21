@@ -775,7 +775,7 @@ export class CashbackService {
   private normalizeProductName(name: string): string {
     return name
       .toLowerCase()
-      .replace(/[^\w\s]/gi, '') // Убираем знаки препинания
+      .replace(/[^\u0400-\u04FFa-zA-Z0-9\s]/gi, '') // Оставляем кириллицу, латиницу, цифры и пробелы
       .replace(/\s+/g, ' ') // Заменяем множественные пробелы одним
       .trim();
   }
