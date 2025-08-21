@@ -56,7 +56,7 @@ export class CashbackService {
       this.logger.log(`Parsed ${receiptItems.length} receipt items`);
 
       // 3. Сопоставляем товары с акциями и рассчитываем кэшбек
-      const result = await this.matchItemsWithOffersAndCalculate(receiptItems, activeOffers);
+      const result = await this.matchItemsWithOffersAndCalculate(receiptItems, activeOffers, promotionId);
 
       this.logger.log(`Calculated total cashback: ${result.totalCashback}`);
       return result;
@@ -506,16 +506,24 @@ export class CashbackService {
   private parseReceiptItems(receiptData: any): ReceiptItem[] {
     this.logger.log('Parsing receipt items from:', receiptData);
     
-    // Если это данные из ФНС (есть поле items)
-    if (receiptData?.items) {
-      this.logger.log(`Parsing ${receiptData.items.length} FNS items`);
-      return receiptData.items.map((item: any) => ({
-        name: this.normalizeProductName(item.name || item.productName || item.text || ''),
-        sku: item.sku || item.productCode || item.code || null,
-        price: this.parsePrice(item.price || item.sum || item.amount || 0),
-        quantity: parseInt(item.quantity || item.qty || 1),
-        total: this.parsePrice(item.sum || item.total || item.amount || 0),
-      }));
+    // Если это данные из ФНС (есть поле items или content.items)
+    const fnsItems = receiptData?.items || receiptData?.content?.items;
+    if (fnsItems) {
+      this.logger.log(`Parsing ${fnsItems.length} FNS items`);
+      const parsedItems = fnsItems.map((item: any) => {
+        const parsedItem = {
+          name: this.normalizeProductName(item.name || item.productName || item.text || ''),
+          sku: item.sku || item.productCode || item.code || null,
+          price: this.parsePrice(item.price || item.sum || item.amount || 0),
+          quantity: parseInt(item.quantity || item.qty || 1),
+          total: this.parsePrice(item.sum || item.total || item.amount || 0),
+        };
+        
+        this.logger.debug(`Parsed FNS item: original="${item.name}", normalized="${parsedItem.name}", price=${parsedItem.price}, total=${parsedItem.total}`);
+        return parsedItem;
+      });
+      
+      return parsedItems;
     }
 
     // Если это данные из БД (есть поле products с вложенными объектами)
@@ -541,7 +549,7 @@ export class CashbackService {
     }
 
     // Fallback для других форматов
-    const items = receiptData?.document?.receipt?.items || [];
+    const items = receiptData?.content?.items || receiptData?.document?.receipt?.items || [];
     this.logger.log(`Parsing ${items.length} fallback items`);
     
     return items.map((item: any) => ({
@@ -558,7 +566,8 @@ export class CashbackService {
    */
   private async matchItemsWithOffersAndCalculate(
     receiptItems: ReceiptItem[],
-    activeOffers: any[]
+    activeOffers: any[],
+    promotionId?: string
   ): Promise<CashbackCalculationResult> {
     const result: CashbackCalculationResult = {
       totalCashback: 0,
@@ -580,9 +589,14 @@ export class CashbackService {
         }
       }
 
-      // ВАЖНО: Кешбек начисляется ТОЛЬКО за товары, участвующие в акциях
-      // Убираем проверку фиксированного кешбека товаров без акций
-      // Согласно требованиям: "кешбек должен начисляться только за те товары, которые входили в какие либо акции"
+      // Если товар не подошел под акции, проверяем фиксированный кешбек
+      if (!bestMatch) {
+        const productCashback = await this.tryMatchWithProductCashback(receiptItem, promotionId);
+        if (productCashback) {
+          bestMatch = productCashback;
+          this.logger.log(`Item "${receiptItem.name}" matched with product cashback: ${productCashback.cashbackAmount}`);
+        }
+      }
 
       if (bestMatch) {
         result.items.push(bestMatch);
@@ -658,11 +672,12 @@ export class CashbackService {
    * Попытка найти фиксированный кэшбек товара
    */
   private async tryMatchWithProductCashback(
-    receiptItem: ReceiptItem
+    receiptItem: ReceiptItem,
+    promotionId?: string
   ): Promise<CashbackItemCalculation | null> {
-    // Ищем товар по SKU или названию
-    const product = await this.findProductBySku(receiptItem.sku) || 
-                   await this.findProductByName(receiptItem.name);
+    // Ищем товар по SKU или названию в рамках конкретной промо-акции
+    const product = await this.findProductBySku(receiptItem.sku, promotionId) || 
+                   await this.findProductByName(receiptItem.name, promotionId);
 
     if (!product || !product.fixCashback || !product.cashbackType) {
       return null;
@@ -781,11 +796,16 @@ export class CashbackService {
   /**
    * Поиск товара по SKU
    */
-  private async findProductBySku(sku?: string) {
+  private async findProductBySku(sku?: string, promotionId?: string) {
     if (!sku) return null;
     
+    const whereCondition: any = { sku };
+    if (promotionId) {
+      whereCondition.promotionId = promotionId;
+    }
+    
     return await this.prisma.product.findFirst({
-      where: { sku },
+      where: whereCondition,
       include: { brand: true },
     });
   }
@@ -793,18 +813,45 @@ export class CashbackService {
   /**
    * Поиск товара по названию
    */
-  private async findProductByName(name: string) {
+  private async findProductByName(name: string, promotionId?: string) {
     const normalizedName = this.normalizeProductName(name);
     
-    return await this.prisma.product.findFirst({
-      where: {
-        name: {
-          contains: normalizedName,
-          mode: 'insensitive',
-        },
+    this.logger.debug(`Searching for product: original="${name}", normalized="${normalizedName}", promotionId=${promotionId}`);
+    
+    // Сначала ищем точное совпадение
+    let whereCondition: any = {
+      name: {
+        equals: name,
+        mode: 'insensitive',
       },
+    };
+    
+    if (promotionId) {
+      whereCondition.promotionId = promotionId;
+    }
+    
+    let product = await this.prisma.product.findFirst({
+      where: whereCondition,
       include: { brand: true },
     });
+    
+    // Если точного совпадения нет, ищем частичное
+    if (!product) {
+      this.logger.debug('Exact match not found, trying partial match');
+      whereCondition.name = {
+        contains: normalizedName,
+        mode: 'insensitive',
+      };
+      
+      product = await this.prisma.product.findFirst({
+        where: whereCondition,
+        include: { brand: true },
+      });
+    }
+    
+    this.logger.debug(`Product search result: ${product ? `found ID=${product.id}, name="${product.name}"` : 'not found'}`);
+    
+    return product;
   }
 
   /**

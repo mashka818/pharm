@@ -671,7 +671,7 @@ export class FnsService {
    * Парсинг товаров из ответа ФНС
    */
   private parseReceiptItemsFromFns(receiptData: any): any[] {
-    const items = receiptData?.items || receiptData?.products || receiptData?.document?.receipt?.items || [];
+    const items = receiptData?.items || receiptData?.content?.items || receiptData?.products || receiptData?.document?.receipt?.items || [];
     
     return items.map((item: any) => ({
       name: item.name || item.productName || item.text || '',
