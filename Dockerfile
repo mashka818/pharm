@@ -14,8 +14,6 @@ COPY prisma ./prisma/
 
 COPY . .
 
-RUN npm run build
-
-EXPOSE 4000
+EXPOSE 4010
 
 CMD ["npm", "run", "start:prod"]

@@ -7,7 +7,7 @@ services:
       - .env.dev
     ports:
       - "4010:4010"
-    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm run start:prod"
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm run build && npm run start:prod"
     restart: always
     extra_hosts:
       - "host.docker.internal:host-gateway"
