@@ -1,4 +1,5 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma.service';
 import { PromotionsModule } from './promotions/promotions.module';
 import { CompaniesModule } from './companies/companies.module';
@@ -25,6 +26,10 @@ import { TenantMiddleware } from './auth/middleware/tenant.middleware';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      envFilePath: ['.backend.env', '.env', '.env.dev'],
+      isGlobal: true,
+    }),
     PromotionsModule,
     CompaniesModule,
     CustomersModule,

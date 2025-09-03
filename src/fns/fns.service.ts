@@ -44,7 +44,6 @@ export class FnsService {
       //   throw new BadRequestException('Invalid domain for this promotion');
       // }
 
-      // Проверяем повторное сканирование
       const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
       
       const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimitsForPromotion(
@@ -244,11 +243,9 @@ export class FnsService {
       }
     }
     
-    // Поддельные чеки не обрабатываются - выводится ошибка + уведомление админу
     if (result.isFake) {
       this.logger.warn(`Request ${requestId}: Receipt is fake, no receipt record will be created`);
       
-      // Уведомляем администратора о поддельном чеке
       if (fnsRequest?.promotionId && customerId) {
         await this.createAdminNotification(
           'fake_receipt',
@@ -268,7 +265,6 @@ export class FnsService {
       return;
     }
 
-    // Возвратные чеки не обрабатываются
     if (result.isReturn) {
       this.logger.warn(`Request ${requestId}: Receipt is return operation, no cashback awarded`);
       await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
@@ -280,7 +276,6 @@ export class FnsService {
     }
     
     if (status === 'success' && result.isValid && !result.isReturn && !result.isFake) {
-      // Проверяем ИНН чека - только чеки нашей организации принимаются
       const receiptInn = (result.receiptData?.inn || 
                          result.receiptData?.user?.inn || 
                          result.receiptData?.userInn ||
@@ -288,7 +283,9 @@ export class FnsService {
                          result.receiptData?.content?.userInn)?.toString().trim();
       const organizationInn = process.env.ORGANIZATION_INN?.toString().trim();
       
-      // Логируем структуру receiptData для отладки
+      // Отладка переменной окружения
+      this.logger.debug(`Environment check: ORGANIZATION_INN = "${process.env.ORGANIZATION_INN}", trimmed = "${organizationInn}"`);
+      
       this.logger.debug(`Receipt data structure: ${JSON.stringify({
         'receiptData.inn': result.receiptData?.inn,
         'receiptData.userInn': result.receiptData?.userInn,
@@ -313,7 +310,6 @@ export class FnsService {
       if (receiptInn !== organizationInn) {
         this.logger.warn(`Request ${requestId}: INN mismatch. Receipt INN: ${receiptInn}, Organization INN: ${organizationInn}`);
         
-        // Уведомляем администратора о чеке с неправильным ИНН
         if (fnsRequest?.promotionId && customerId) {
           await this.createAdminNotification(
             'suspicious_activity',
@@ -337,16 +333,13 @@ export class FnsService {
       
       this.logger.log(`Request ${requestId}: INN validated successfully (${receiptInn})`);
       
-      // Начисляем кешбек только для валидных чеков покупки (не возврата) нашей организации
       let cashbackAmount = 0;
       let cashbackId = null;
       
       if (customerId && fnsRequest?.promotionId) {
         try {
-          // Проверяем принадлежность клиента к подсети
           await this.validateCustomerForPromotion(customerId, fnsRequest.promotionId);
           
-          // Используем новую систему кэшбека
           const calculationResult = await this.cashbackService.calculateCashback(
             result.receiptData, 
             customerId, 
@@ -354,7 +347,6 @@ export class FnsService {
           );
           
           if (calculationResult.totalCashback > 0) {
-            // Дополнительная проверка: убеждаемся что чек не содержит отрицательных сумм
             const hasNegativeItems = this.checkForNegativeItems(result.receiptData);
             if (hasNegativeItems) {
               this.logger.warn(`Request ${requestId}: Receipt contains negative items, treating as return`);
@@ -393,7 +385,6 @@ export class FnsService {
           }
         } catch (error) {
           this.logger.error(`Error awarding cashback for request ${requestId}:`, error);
-          // Fallback to old system if new system fails
           cashbackAmount = await this.fnsCashbackService.calculateCashback(
             result.receiptData, 
             customerId, 
@@ -416,7 +407,6 @@ export class FnsService {
         isFake: false,
       });
     } else if (status === 'rejected') {
-      // Отклоняем чек при ошибке валидации
       this.logger.warn(`Request ${requestId} rejected: validation failed`);
       
       await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
@@ -439,18 +429,14 @@ export class FnsService {
     }
   }
 
-  /**
-   * Проверяет наличие отрицательных сумм в чеке (индикатор возврата)
-   */
+  
   private checkForNegativeItems(receiptData: any): boolean {
     if (!receiptData) return false;
     
-    // Проверяем общую сумму
     if (receiptData.totalSum < 0 || receiptData.sum < 0 || receiptData.total < 0) {
       return true;
     }
     
-    // Проверяем позиции
     const items = receiptData.items || receiptData.products || [];
     return items.some((item: any) => 
       (item.price && item.price < 0) || 
@@ -551,13 +537,11 @@ export class FnsService {
     try {
       this.logger.log(`Creating receipt record for customer ${customerId}, promotion ${promotionId}, cashback: ${cashback}`);
       
-      // Создаем запись чека  
       const receiptDate = receiptData.dateTime || receiptData.content?.dateTime || receiptData.date || receiptData.content?.date;
       const fiscalNumber = receiptData.fiscalDocumentNumber || receiptData.content?.fiscalDocumentNumber || receiptData.fd;
       const totalSum = receiptData.totalSum || receiptData.content?.totalSum || receiptData.sum || receiptData.content?.sum;
       const address = receiptData.retailPlace || receiptData.content?.retailPlace || receiptData.retailPlaceAddress || receiptData.content?.retailPlaceAddress || receiptData.address || 'Неизвестно';
       
-      // Конвертируем timestamp в дату
       const parsedDate = receiptDate ? (typeof receiptDate === 'number' ? new Date(receiptDate * 1000) : new Date(receiptDate)) : new Date();
       
       const receipt = await this.prisma.receipt.create({
@@ -573,13 +557,10 @@ export class FnsService {
         },
       });
 
-      // Создаем записи товаров из чека ФНС
-      // ВАЖНО: сначала пытаемся найти товары в нашей базе, если не находим - все равно записываем информацию из чека
       const receiptItems = this.parseReceiptItemsFromFns(receiptData);
       const receiptProducts = await Promise.all(
         receiptItems.map(async (fnsItem: any, index: number) => {
           try {
-            // Пытаемся найти товар в нашей базе данных
             const matchedProduct = await this.findProductInDatabase(fnsItem, promotionId);
             const matchedOffer = calculationResult?.items?.[index]?.offerId;
             const itemCashback = calculationResult?.items?.[index]?.cashbackAmount || 0;
@@ -587,10 +568,9 @@ export class FnsService {
             return await this.prisma.receiptProduct.create({
               data: {
                 receiptId: receipt.id,
-                productId: matchedProduct?.id || null, // null если товар не найден в нашей БД
+                productId: matchedProduct?.id || null, 
                 offerId: matchedOffer || null,
                 cashback: itemCashback,
-                // Дополнительно сохраняем данные из ФНС для аудита
                 fnsProductName: fnsItem.name,
                 fnsProductPrice: fnsItem.price,
                 fnsProductQuantity: fnsItem.quantity,
@@ -600,7 +580,6 @@ export class FnsService {
           } catch (error) {
             this.logger.error(`Error creating receipt product for FNS item ${fnsItem.name}:`, error);
             
-            // Если не удалось создать с productId, создаем без него но с данными ФНС
             try {
               return await this.prisma.receiptProduct.create({
                 data: {
@@ -632,7 +611,6 @@ export class FnsService {
         this.logger.warn(`${unmatchedProducts} products from FNS receipt could not be matched with local database for promotion ${promotionId}`);
       }
 
-      // Получаем полную информацию о созданном чеке
       const completeReceipt = await this.prisma.receipt.findUnique({
         where: { id: receipt.id },
         include: {
@@ -678,9 +656,7 @@ export class FnsService {
     }
   }
 
-  /**
-   * Парсинг товаров из ответа ФНС
-   */
+  
   private parseReceiptItemsFromFns(receiptData: any): any[] {
     const items = receiptData?.items || receiptData?.content?.items || receiptData?.products || receiptData?.document?.receipt?.items || [];
     
@@ -696,17 +672,13 @@ export class FnsService {
     }));
   }
 
-  /**
-   * Поиск товара в локальной базе данных по данным из ФНС
-   */
+  
   private async findProductInDatabase(fnsItem: any, promotionId: string): Promise<any | null> {
     try {
       this.logger.debug(`Searching for product in database: ${fnsItem.name}`);
       
-      // Нормализуем название товара для поиска
       const normalizedName = this.normalizeProductName(fnsItem.name);
       
-      // Поиск по точному совпадению названия
       let product = await this.prisma.product.findFirst({
         where: {
           promotionId,
@@ -720,7 +692,6 @@ export class FnsService {
         },
       });
 
-      // Если не найден по точному совпадению, ищем по частичному совпадению
       if (!product) {
         product = await this.prisma.product.findFirst({
           where: {
@@ -736,11 +707,10 @@ export class FnsService {
         });
       }
 
-      // Если все еще не найден, ищем по ключевым словам
       if (!product && normalizedName.length > 3) {
         const keywords = normalizedName.split(' ').filter(word => word.length > 2);
         
-        for (const keyword of keywords.slice(0, 3)) { // Берем первые 3 ключевых слова
+        for (const keyword of keywords.slice(0, 3)) { 
           product = await this.prisma.product.findFirst({
             where: {
               promotionId,
@@ -771,20 +741,16 @@ export class FnsService {
     }
   }
 
-  /**
-   * Нормализация названия товара для поиска
-   */
+ 
   private normalizeProductName(name: string): string {
     return name
       .toLowerCase()
-      .replace(/[^\w\s]/gi, '') // Убираем знаки препинания
-      .replace(/\s+/g, ' ') // Заменяем множественные пробелы одним
+      .replace(/[^\w\s]/gi, '') 
+      .replace(/\s+/g, ' ') 
       .trim();
   }
 
-  /**
-   * Парсинг цены из различных форматов
-   */
+  
   private parsePrice(price: any): number {
     if (typeof price === 'number') {
       return price;
@@ -798,9 +764,7 @@ export class FnsService {
     return 0;
   }
 
-  /**
-   * Создание уведомления для администратора
-   */
+  
   private async createAdminNotification(
     type: 'suspicious_activity' | 'repeated_scan' | 'fake_receipt' | 'system_error',
     title: string,
@@ -829,12 +793,9 @@ export class FnsService {
     }
   }
 
-  /**
-   * Проверка повторного сканирования и уведомление администратора
-   */
+  
   async checkForRepeatedScan(qrData: any, customerId: number, promotionId: string): Promise<boolean> {
     try {
-      // Проверяем, сканировал ли клиент этот чек раньше
       const existingRequest = await this.prisma.fnsRequest.findFirst({
         where: {
           customerId,
@@ -865,7 +826,6 @@ export class FnsService {
       });
 
       if (existingRequest) {
-        // Уведомляем администратора о повторном сканировании
         await this.createAdminNotification(
           'repeated_scan',
           'Повторное сканирование чека',
@@ -876,19 +836,17 @@ export class FnsService {
           { originalRequestId: existingRequest.id, qrData }
         );
         
-        return true; // Это повторное сканирование
+        return true; 
       }
 
-      return false; // Первое сканирование
+      return false; 
     } catch (error) {
       this.logger.error('Error checking for repeated scan:', error);
       return false;
     }
   }
 
-  /**
-   * Проверка принадлежности клиента к подсети промо-акции
-   */
+  
   private async validateCustomerForPromotion(customerId: number, promotionId: string) {
     const customer = await this.prisma.customer.findUnique({
       where: { id: customerId },
@@ -899,7 +857,6 @@ export class FnsService {
       throw new Error(`Customer ${customerId} not found`);
     }
 
-    // Проверяем, что клиент принадлежит к той же подсети
     if (customer.promotionId !== promotionId) {
       this.logger.warn(`Customer ${customerId} belongs to promotion ${customer.promotionId}, but trying to scan receipt for promotion ${promotionId}`);
       throw new Error(
