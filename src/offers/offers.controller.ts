@@ -32,13 +32,8 @@ export class OffersController {
     private readonly updateOfferService: UpdateOfferService,
   ) {}
 
-  @ApiOperation({ summary: 'Создать предложение', description: 'Создаёт новое предложение.' })
-  @ApiResponse({ status: 201, description: 'Предложение успешно создано', type: ResponseOfferDto })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
-  @ApiResponse({ status: 409, description: 'Предложение с такими параметрами уже существует' })
-  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+  @ApiOperation({ summary: 'Создать предложение' })
+  @ApiResponse({ status: 201, description: 'Предложение создано', type: ResponseOfferDto })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -52,6 +47,10 @@ export class OffersController {
         productIds: { type: 'string', example: '[1,2]' },
         banner_image: { type: 'string', format: 'binary' },
         promotionId: { type: 'string', example: 'r-pharm' },
+        isLottery: { type: 'boolean', example: false, description: 'Участвует ли в розыгрыше' },
+        lotteryPrize: { type: 'string', example: 'iPhone 15 Pro Max', description: 'Описание приза (если isLottery=true)' },
+        lotteryWinners: { type: 'number', example: 5, description: 'Количество победителей (если isLottery=true)' },
+        lotteryEndDate: { type: 'string', example: '2024-12-31T23:59:59Z', description: 'Дата окончания розыгрыша (если isLottery=true)' },
       },
       required: ['profit', 'profitType', 'banner_color', 'date_from', 'date_to', 'productIds', 'promotionId'],
     },
@@ -66,34 +65,22 @@ export class OffersController {
     return this.createOfferService.create(createOfferDto, banner_image);
   }
 
-  @ApiOperation({ summary: 'Получить предложение по ID', description: 'Возвращает данные предложения по идентификатору.' })
-  @ApiResponse({ status: 200, description: 'Данные предложения', type: ResponseOfferDtoWithProducts })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
-  @ApiResponse({ status: 404, description: 'Предложение не найдено' })
-  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+  @ApiOperation({ summary: 'Получить предложение по ID' })
+  @ApiResponse({ status: 200, type: ResponseOfferDtoWithProducts })
   @Get(':id')
   getOneOffer(@Param('id') id: number) {
     return this.getOneOfferService.getOne(id);
   }
 
-  @ApiOperation({ summary: 'Получить все предложения', description: 'Возвращает список всех предложений.' })
-  @ApiResponse({ status: 200, description: 'Список предложений', type: [ResponseOfferDto] })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
-  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+  @ApiOperation({ summary: 'Получить все предложения' })
+  @ApiResponse({ status: 200, type: [ResponseOfferDto] })
   @Get()
   getAllOffers() {
     return this.offersService.getAll();
   }
 
-  @ApiOperation({ summary: 'Обновить предложение', description: 'Обновляет данные предложения.' })
-  @ApiResponse({ status: 200, description: 'Предложение успешно обновлено', type: ResponseOfferDtoWithProducts })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
-  @ApiResponse({ status: 404, description: 'Предложение не найдено' })
-  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+  @ApiOperation({ summary: 'Обновить предложение' })
+  @ApiResponse({ status: 200, type: ResponseOfferDtoWithProducts })
   @ApiBody({ type: UpdateOfferDto })
   @UseGuards(AdminGuard)
   @UseInterceptors(FileInterceptor('banner_image'))
@@ -106,12 +93,8 @@ export class OffersController {
     return this.updateOfferService.update(id, updateOfferDto, banner_image);
   }
 
-  @ApiOperation({ summary: 'Удалить предложение', description: 'Удаляет предложение по идентификатору.' })
-  @ApiResponse({ status: 200, description: 'Предложение успешно удалено' })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
-  @ApiResponse({ status: 404, description: 'Предложение не найдено' })
-  @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+  @ApiOperation({ summary: 'Удалить предложение' })
+  @ApiResponse({ status: 200 })
   @UseGuards(AdminGuard)
   @Delete(':id')
   removeOffer(@Param('id') id: number) {

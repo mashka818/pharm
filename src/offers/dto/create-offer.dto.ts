@@ -63,15 +63,12 @@ export class CreateOfferDto {
   @Transform(({ value }) => {
     try {
       if (typeof value === 'string') {
-        // Проверяем, является ли это JSON строкой
         if (value.startsWith('[') && value.endsWith(']')) {
           return JSON.parse(value);
         }
-        // Если это строка с числами, разделенными запятыми
         if (value.includes(',')) {
           return value.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
         }
-        // Если это одно число
         const singleId = parseInt(value);
         if (!isNaN(singleId)) {
           return [singleId];
@@ -126,7 +123,6 @@ export class CreateOfferDto {
   @IsString()
   promotionId: string;
 
-  // Поля для розыгрышей
   @ApiPropertyOptional({
     description: 'Участвует ли предложение в розыгрыше',
     example: false,
@@ -134,6 +130,12 @@ export class CreateOfferDto {
   })
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value === 'true';
+    }
+    return value;
+  })
   isLottery?: boolean = false;
 
   @ApiPropertyOptional({
@@ -152,6 +154,7 @@ export class CreateOfferDto {
   @IsOptional()
   @ValidateIf(o => o.isLottery === true)
   @IsNumber()
+  @Transform(({ value }) => value ? parseInt(value) : undefined)
   lotteryWinners?: number;
 
   @ApiPropertyOptional({
