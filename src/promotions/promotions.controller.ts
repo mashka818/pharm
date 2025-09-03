@@ -125,11 +125,11 @@ export class PromotionsController {
     @UploadedFiles()
     files: {
       banner?: Express.Multer.File[];
-      logo: Express.Multer.File[];
-      favicon: Express.Multer.File[];
-    },
+      logo?: Express.Multer.File[];
+      favicon?: Express.Multer.File[];
+    } = {},
   ) {
-    const { banner, logo, favicon } = files;
+    const { banner, logo, favicon } = files || {};
     return this.updatePromotionService.update(
       promotionId,
       updatePromotionDto,

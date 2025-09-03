@@ -65,6 +65,11 @@ export class PromotionsService {
   async remove(promotionId: string): Promise<string> {
     const promotion = await this.findOne(promotionId);
 
+    await this.prisma.customer.updateMany({
+      where: { promotionId },
+      data: { promotionId: null }
+    });
+
     this.filesService.deleteFile(promotion.logo);
     this.filesService.deleteFile(promotion.favicon);
 
