@@ -30,11 +30,11 @@ export class ScanQrCodeDto {
   fp: string;
 
   @ApiProperty({ 
-    description: 'Сумма чека в копейках', 
-    example: 240000,
-    minimum: 1
+    description: 'Сумма чека в рублях (будет конвертирована в копейки автоматически)', 
+    example: 1200,
+    minimum: 0.01
   })
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }) => Number(value))
   @IsNumber()
   sum: number;
 

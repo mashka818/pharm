@@ -1,9 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Public } from 'src/decorators/public.decorator';
+import { ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ConfirmationResponseDto } from 'src/auth/dto/confirmation-response.dto';
+import { AuthCustomerService } from 'src/auth/auth-customer.service';
 import { AdminsService } from './admins.service';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { UserOwnershipGuard } from 'src/auth/guards/user-ownership.guard';
-import { ApiBody, ApiResponse, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBody, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 
 @ApiBearerAuth()
@@ -11,7 +15,7 @@ import { UpdateAdminDto } from './dto/update-admin.dto';
 @ApiTags('Admin')
 @Controller('admins')
 export class AdminsController {
-  constructor(private readonly adminsService: AdminsService) {}
+  constructor(private readonly adminsService: AdminsService, private readonly authCustomerService: AuthCustomerService) {}
 
   getAdminByUsername(username: LoginAdminDto['username']) {
     return this.adminsService.getAdminByUsername(username);
@@ -28,6 +32,14 @@ export class AdminsController {
   @Post()
   createAdmin(@Body() adminDto: LoginAdminDto) {
     return this.adminsService.create(adminDto);
+  }
+
+  @ApiOperation({ summary: 'Подтвердить пользователя по токену' })
+  @ApiResponse({ status: 200, description: 'Пользователь успешно подтвержден', type: ConfirmationResponseDto })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  @Post('confirm-customer/:confirmationToken')
+  confirmCustomer(@Param('confirmationToken') confirmationToken: string) {
+    return this.authCustomerService.confirmCustomer(confirmationToken);
   }
 
   @ApiOperation({ summary: 'Получить администратора по ID', description: 'Возвращает данные администратора по его идентификатору.' })

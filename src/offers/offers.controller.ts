@@ -50,7 +50,6 @@ export class OffersController {
         isLottery: { type: 'boolean', example: false, description: 'Участвует ли в розыгрыше' },
         lotteryPrize: { type: 'string', example: 'iPhone 15 Pro Max', description: 'Описание приза (если isLottery=true)' },
         lotteryWinners: { type: 'number', example: 5, description: 'Количество победителей (если isLottery=true)' },
-        lotteryEndDate: { type: 'string', example: '2024-12-31T23:59:59Z', description: 'Дата окончания розыгрыша (если isLottery=true)' },
       },
       required: ['profit', 'profitType', 'banner_color', 'date_from', 'date_to', 'productIds', 'promotionId'],
     },

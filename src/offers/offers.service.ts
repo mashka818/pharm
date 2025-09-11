@@ -18,7 +18,7 @@ export class OffersService {
       ...offer,
       date_from: offer.date_from.toISOString(),
       date_to: offer.date_to.toISOString(),
-      lotteryEndDate: offer.lotteryEndDate ? offer.lotteryEndDate.toISOString() : null,
+      
     }));
     return offersWithStringDate;
   }
@@ -72,7 +72,7 @@ export class OffersService {
         products,
         date_from: offer.date_from.toISOString(),
         date_to: offer.date_to.toISOString(),
-        lotteryEndDate: offer.lotteryEndDate ? offer.lotteryEndDate.toISOString() : null,
+        
       };
     });
 

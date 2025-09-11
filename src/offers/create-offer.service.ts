@@ -26,13 +26,12 @@ export class CreateOfferService {
     createOfferDto: CreateOfferDto,
     bannerImage?: Express.Multer.File,
   ): Promise<ResponseOfferDto> {
-    const { productIds, condition, isLottery, lotteryPrize, lotteryWinners, lotteryEndDate, ...offerData } = createOfferDto;
+    const { productIds, condition, isLottery, lotteryPrize, lotteryWinners, ...offerData } = createOfferDto;
 
     this.logger.log(`Creating offer for promotion ${offerData.promotionId} with ${productIds.length} products`);
 
     await this.promotionsService.findOne(offerData.promotionId);
 
-    // Валидация принадлежности товаров к подсети ПЕРЕД созданием предложения
     await this.validateProductsForPromotion(productIds, offerData.promotionId);
 
     if (!bannerImage) {
@@ -41,10 +40,9 @@ export class CreateOfferService {
 
     const bannerName = await this.filesService.createFile(bannerImage);
 
-    // Валидация полей розыгрыша
     if (isLottery) {
-      if (!lotteryPrize || !lotteryWinners || !lotteryEndDate) {
-        throw new BadRequestException('For lottery offers, lotteryPrize, lotteryWinners, and lotteryEndDate are required');
+      if (!lotteryPrize || !lotteryWinners) {
+        throw new BadRequestException('For lottery offers, lotteryPrize and lotteryWinners are required');
       }
     }
 
@@ -55,7 +53,6 @@ export class CreateOfferService {
         isLottery: isLottery || false,
         lotteryPrize: isLottery ? lotteryPrize : null,
         lotteryWinners: isLottery ? lotteryWinners : null,
-        lotteryEndDate: isLottery ? new Date(lotteryEndDate) : null,
       },
     });
 
@@ -78,9 +75,7 @@ export class CreateOfferService {
     return await this.getOneOfferService.getOneWithProducts(offer.id);
   }
 
-  /**
-   * Валидация товаров для промоакции - проверяет, что все товары принадлежат к указанной подсети
-   */
+  
   private async validateProductsForPromotion(productIds: number[], promotionId: string) {
     this.logger.log(`Validating ${productIds.length} products for promotion ${promotionId}`);
 
@@ -88,7 +83,6 @@ export class CreateOfferService {
       throw new BadRequestException('At least one product is required for offer');
     }
 
-    // Проверяем товары из других подсетей
     const invalidProducts = await this.prisma.product.findMany({
       where: {
         id: { in: productIds },
@@ -118,7 +112,6 @@ export class CreateOfferService {
       );
     }
 
-    // Проверяем существование всех товаров
     const existingProducts = await this.prisma.product.findMany({
       where: {
         id: { in: productIds },

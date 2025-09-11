@@ -157,14 +157,7 @@ export class CreateOfferDto {
   @Transform(({ value }) => value ? parseInt(value) : undefined)
   lotteryWinners?: number;
 
-  @ApiPropertyOptional({
-    description: 'Дата окончания розыгрыша',
-    example: '2024-12-31T23:59:59Z',
-  })
-  @IsOptional()
-  @ValidateIf(o => o.isLottery === true)
-  @IsDateString()
-  lotteryEndDate?: string;
+  
 }
 
 type TProfit = 'static' | 'from';

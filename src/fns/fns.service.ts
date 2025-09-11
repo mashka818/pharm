@@ -89,33 +89,7 @@ export class FnsService {
     }
   }
 
-  async verifyReceipt(qrData: VerifyReceiptDto, customerId?: number) {
-    this.logger.log(`Starting receipt verification for QR data: ${JSON.stringify(qrData)}`);
-    
-    try {
-      if (customerId) {
-        const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimits(customerId, qrData);
-        if (!canReceiveCashback) {
-          return {
-            requestId: null,
-            status: 'rejected',
-            message: 'Cashback already received for this receipt',
-          };
-        }
-      }
-
-      const requestId = await this.fnsQueueService.addToQueue(qrData, customerId);
-      
-      return {
-        requestId,
-        status: 'pending',
-        message: 'Receipt verification started',
-      };
-    } catch (error) {
-      this.logger.error('Error starting receipt verification:', error);
-      throw error;
-    }
-  }
+  
 
   async getRequestStatus(requestId: string): Promise<ReceiptStatusDto> {
     const request = await this.prisma.fnsRequest.findUnique({

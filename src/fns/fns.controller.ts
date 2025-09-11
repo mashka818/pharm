@@ -84,23 +84,7 @@ export class FnsController {
     );
   }
 
-  @Post('verify')
-  @ApiOperation({ 
-    summary: 'Проверить чек по QR коду (legacy метод)',
-    description: 'Проверяет валидность чека и рассчитывает кешбек для общей системы (без привязки к конкретной сети)'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Чек успешно отправлен на проверку',
-    type: Object
-  })
-  async verifyReceipt(
-    @Body() verifyReceiptDto: VerifyReceiptDto,
-    @Request() req: any,
-  ) {
-    const customerId = req.user?.id;
-    return this.fnsService.verifyReceipt(verifyReceiptDto, customerId);
-  }
+  
 
   @Get('status/:requestId')
   @ApiOperation({ 

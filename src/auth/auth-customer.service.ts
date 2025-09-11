@@ -51,7 +51,7 @@ export class AuthCustomerService {
 
     const createdCustomer = await this.unconfirmedCustomersService.createUnconfirmed(customer);
 
-    const confirmationLink = `${process.env.FRONTEND_URL}/auth/confirm/${createdCustomer.confirmationToken}`;
+    const confirmationLink = `https://чек-поинт.рф/auth/confirm/${createdCustomer.confirmationToken}`;
 
     const res = await this.mailerService.sendMail({
       subject: 'Подтверждение регистрации',

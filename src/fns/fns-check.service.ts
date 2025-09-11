@@ -6,52 +6,40 @@ export class FnsCheckService {
   private readonly logger = new Logger(FnsCheckService.name);
 
   private normalizeSum(sum: any, additionalData?: Record<string, any>): number {
-    const numericSum = typeof sum === 'string' ? parseInt(sum, 10) : Number(sum);
+    const numericSum = typeof sum === 'string' ? Number(sum) : Number(sum);
     if (!Number.isFinite(numericSum)) return 0;
 
-    // Если явно указано, что сумма уже в копейках, возвращаем как есть
     if (additionalData && (additionalData.sumInKopecks === true || additionalData.sum_unit === 'kopecks')) {
       return Math.trunc(numericSum);
     }
 
-    // По умолчанию считаем, что если сумма меньше 1000, то она в рублях — конвертируем в копейки
-    // Это помогает, если клиент прислал 120 вместо 12000
-    if (numericSum > 0 && numericSum < 1000) {
-      return Math.trunc(numericSum * 100);
-    }
-
-    return Math.trunc(numericSum);
+    return Math.trunc(numericSum * 100);
   }
 
   private normalizeDate(dateInput: any): string {
     if (!dateInput) return '';
     const str = String(dateInput).trim();
 
-    // Если приходит уже ISO с временем
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(str)) {
       return str.length === 16 ? str + ':00' : str;
     }
 
-    // Формат YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
       return str + 'T00:00:00';
     }
 
-    // Формат DD.MM.YYYY[ HH:mm[:ss]]
     const dm = str.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
     if (dm) {
       const [, d, m, y, hh = '00', mm = '00', ss = '00'] = dm;
       return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
     }
 
-    // Формат YYYYMMDDTHHmm (классический из QR)
     const compact = str.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?$/);
     if (compact) {
       const [, y, m, d, hh, mm, ss = '00'] = compact;
       return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
     }
 
-    // Fallback — пробуем через Date
     const date = new Date(str);
     if (!isNaN(date.getTime())) {
       const pad = (n: number) => String(n).padStart(2, '0');
@@ -64,7 +52,7 @@ export class FnsCheckService {
       return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
     }
 
-    return str; // как есть, чтобы не ломать, если формат уже пригоден для ФНС
+    return str; 
   }
 
   async sendCheckRequest(qrData: any, token: string): Promise<string> {
@@ -229,11 +217,9 @@ export class FnsCheckService {
     const processingStatusMatch = xmlResponse.match(/<ProcessingStatus>([^<]+)<\/ProcessingStatus>/);
     const fnsProcessingStatus = processingStatusMatch ? processingStatusMatch[1] : 'UNKNOWN';
 
-    // Читаем код результата, если есть
     const codeMatch = xmlResponse.match(/<(?:\w+:)?Code>(\d+)<\/(?:\w+:)?Code>/);
     const resultCode = codeMatch ? parseInt(codeMatch[1], 10) : undefined;
 
-    // Ищем Ticket без привязки к namespace
     const ticketMatch = xmlResponse.match(/<(?:\w+:)?Ticket>([\s\S]*?)<\/(?:\w+:)?Ticket>/);
     let receiptData = null;
     if (ticketMatch && ticketMatch[1]) {
@@ -258,10 +244,8 @@ export class FnsCheckService {
         break;
       case 'COMPLETED':
         if (receiptData) {
-          // Проверяем тип операции в полученных данных чека
           const operationType = receiptData.operationType || receiptData.operation;
           
-          // Проверяем различные индикаторы возврата в данных ФНС
           const isReturnByType = operationType === 2 || operationType === '2' || 
                                 operationType === 'return' || operationType === 'возврат';
           const isReturnByName = receiptData.operationName && 
@@ -281,13 +265,11 @@ export class FnsCheckService {
             this.logger.log(`Receipt validated successfully - normal purchase operation`);
           }
         } else {
-          // Если нет Ticket, но есть код — ориентируемся по нему
           if (typeof resultCode === 'number' && resultCode !== 200) {
             status = 'rejected';
             isFake = false;
             this.logger.warn(`Receipt rejected by FNS. Result code: ${resultCode}`);
           } else {
-            // Не удалось распарсить Ticket — не считаем чек фальшивым, просто отклоняем
             status = 'rejected';
             isFake = false;
             this.logger.warn('Receipt rejected - no ticket data parsed from FNS response');

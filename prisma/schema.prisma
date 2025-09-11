@@ -16,7 +16,6 @@ model Admin {
   updatedAt DateTime  @updatedAt
   role      AdminRole
 
-  // Связь с отменёнными кэшбеками
   cancelledCashbacks Cashback[]
 
   @@map("admins")
@@ -43,8 +42,8 @@ model Promotion {
   offers      Offer[]
   products    Product[]
   receipts    Receipt[]
-  cashbacks   Cashback[]           // Новая связь
-  notifications AdminNotification[] // Уведомления
+  cashbacks   Cashback[]           
+  notifications AdminNotification[] 
 
   @@map("promotions")
 }
@@ -75,7 +74,7 @@ model Product {
   brand           Brand            @relation(fields: [brandId], references: [id])
   promotion       Promotion        @relation(fields: [promotionId], references: [promotionId])
   receiptProducts ReceiptProduct[]
-  cashbackItems   CashbackItem[]   // Новая связь
+  cashbackItems   CashbackItem[]   
 
   @@map("products")
 }
@@ -101,15 +100,14 @@ model Offer {
   date_to         DateTime
   date_from       DateTime
   
-  // Поля для розыгрышей
-  isLottery       Boolean          @default(false)    // Участвует ли в розыгрыше
-  lotteryPrize    String?                            // Описание приза
-  lotteryWinners  Int?                               // Количество победителей
-  lotteryEndDate  DateTime?                          // Дата окончания розыгрыша
+  isLottery       Boolean          @default(false)    
+  lotteryPrize    String?                            
+  lotteryWinners  Int?                               
+  lotteryEndDate  DateTime?                          
   
   condition       OfferCondition?  @relation(fields: [conditionId], references: [id])
   promotion       Promotion        @relation(fields: [promotionId], references: [promotionId])
-  cashbackItems   CashbackItem[]   // Новая связь
+  cashbackItems   CashbackItem[]   
   products        ProductOffer[]
   receiptProducts ReceiptProduct[]
 
@@ -172,8 +170,8 @@ model Customer {
   fnsRequests           FnsRequest[]
   receipts              Receipt[]
   withdrawalVariants    WithdrawalVariant[]
-  cashbacks             Cashback[]         // Новая связь
-  notifications         AdminNotification[] // Уведомления связанные с клиентом
+  cashbacks             Cashback[]         
+  notifications         AdminNotification[] 
 
   @@unique([email, promotionId])
   @@map("customers")
@@ -222,23 +220,22 @@ model Receipt {
   products    ReceiptProduct[]
   customer    Customer?        @relation(fields: [customerId], references: [id])
   promotion   Promotion        @relation(fields: [promotionId], references: [promotionId])
-  cashbacks   Cashback[]       // Новая связь
+  cashbacks   Cashback[]       
 
   @@map("receipts")
 }
 
 model ReceiptProduct {
   id        Int     @id @default(autoincrement())
-  productId Int?    // nullable - товар может не быть найден в нашей БД
+  productId Int?    
   offerId   Int?
   cashback  Int
   receiptId Int
   
-  // Данные из ФНС для аудита и сопоставления
   fnsProductName     String?
-  fnsProductPrice    Int?     // цена за единицу в копейках
+  fnsProductPrice    Int?     
   fnsProductQuantity Decimal? @db.Decimal(10,3)
-  fnsProductSum      Int?     // общая стоимость позиции в копейках
+  fnsProductSum      Int?     
   
   offer     Offer?  @relation(fields: [offerId], references: [id])
   product   Product? @relation(fields: [productId], references: [id])
@@ -268,8 +265,8 @@ model FnsRequest {
   customer        Customer?    @relation(fields: [customerId], references: [id])
   promotion       Promotion    @relation(fields: [promotionId], references: [promotionId])
   receipt         Receipt?     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  cashbacks       Cashback[]   // Новая связь
-  notifications   AdminNotification[] // Уведомления связанные с запросом
+  cashbacks       Cashback[]   
+  notifications   AdminNotification[] 
 
   @@map("fns_requests")
 }
@@ -291,7 +288,6 @@ model FnsDailyLimit {
   @@map("fns_daily_limits")
 }
 
-// Новая модель для истории кэшбека
 model Cashback {
   id            Int              @id @default(autoincrement())
   customerId    Int
@@ -303,16 +299,14 @@ model Cashback {
   promotionId   String
   promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
   
-  amount        Int              // Общая сумма кэшбека
+  amount        Int              
   status        CashbackStatus   @default(active)
-  reason        String?          // Причина отмены, если status = cancelled
+  reason        String?          
   
-  // Админ, который отменил кэшбек
   cancelledBy   Int?
   cancelledByAdmin Admin?        @relation(fields: [cancelledBy], references: [id])
   cancelledAt   DateTime?
   
-  // Детализация кэшбека по товарам/акциям
   items         CashbackItem[]
   
   createdAt     DateTime         @default(now())
@@ -321,7 +315,6 @@ model Cashback {
   @@map("cashbacks")
 }
 
-// Детализация кэшбека по товарам
 model CashbackItem {
   id            Int       @id @default(autoincrement())
   cashbackId    Int
@@ -332,17 +325,15 @@ model CashbackItem {
   offerId       Int?
   offer         Offer?    @relation(fields: [offerId], references: [id])
   
-  // Данные о товаре из чека
   productName   String
   productSku    String?
   quantity      Int
-  itemPrice     Int       // Цена за единицу в копейках
-  totalPrice    Int       // Общая стоимость позиции в копейках
+  itemPrice     Int       
+  totalPrice    Int       
   
-  // Расчёт кэшбека
-  cashbackAmount Int      // Сумма кэшбека за эту позицию
+  cashbackAmount Int      
   cashbackType   CashbackType
-  cashbackRate   Int?     // Процент или фиксированная сумма
+  cashbackRate   Int?     
   
   @@map("cashback_items")
 }
