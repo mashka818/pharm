@@ -43,6 +43,17 @@ export class CustomersService {
     return await this.prisma.customer.findMany({ where: { email } });
   }
 
+  async confirmByEmail(email: string) {
+    const unconfirmed = await this.prisma.unconfirmedCustomer.findFirst({ where: { email } });
+    if (!unconfirmed) {
+      throw new NotFoundException('Customer not found');
+    }
+    const { id, confirmationToken, ...customer } = unconfirmed as any;
+    await this.prisma.unconfirmedCustomer.delete({ where: { id } });
+    await this.create(customer);
+    return { message: 'User successfully confirmed', email: customer.email };
+  }
+
   async getCustomerWithdrawalVariants(id: number) {
     const customer = await this.getOne(id);
 

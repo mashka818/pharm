@@ -69,7 +69,20 @@ export class AuthController {
     return this.authCustomerService.regCustomer(CreateCustomerDto);
   }
 
-  
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Пользователь успешно подтвержден',
+    type: ConfirmationResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Пользователь не найден' 
+  })
+  @Public()
+  @Post('confirm/:confirmationToken')
+  confirm(@Param('confirmationToken') confirmationToken: string) {
+    return this.authCustomerService.confirmCustomer(confirmationToken);
+  }
 
   @ApiResponse({ type: LoginResponseDto })
   @ApiBody({ type: LoginCustomerDto })

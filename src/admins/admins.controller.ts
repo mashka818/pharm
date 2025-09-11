@@ -9,13 +9,18 @@ import { LoginAdminDto } from './dto/login-admin.dto';
 import { UserOwnershipGuard } from 'src/auth/guards/user-ownership.guard';
 import { ApiBody, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UpdateAdminDto } from './dto/update-admin.dto';
+import { CustomersService } from 'src/customers/customers.service';
 
 @ApiBearerAuth()
 @UseGuards(AdminGuard)
 @ApiTags('Admin')
 @Controller('admins')
 export class AdminsController {
-  constructor(private readonly adminsService: AdminsService, private readonly authCustomerService: AuthCustomerService) {}
+  constructor(
+    private readonly adminsService: AdminsService, 
+    private readonly authCustomerService: AuthCustomerService,
+    private readonly customersService: CustomersService,
+  ) {}
 
   getAdminByUsername(username: LoginAdminDto['username']) {
     return this.adminsService.getAdminByUsername(username);
@@ -40,6 +45,14 @@ export class AdminsController {
   @Post('confirm-customer/:confirmationToken')
   confirmCustomer(@Param('confirmationToken') confirmationToken: string) {
     return this.authCustomerService.confirmCustomer(confirmationToken);
+  }
+
+  @ApiOperation({ summary: 'Подтвердить пользователя по email' })
+  @ApiResponse({ status: 200, description: 'Пользователь успешно подтвержден', type: ConfirmationResponseDto })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  @Post('confirm-customer-by-email/:email')
+  async confirmCustomerByEmail(@Param('email') email: string) {
+    return this.customersService.confirmByEmail(email);
   }
 
   @ApiOperation({ summary: 'Получить администратора по ID', description: 'Возвращает данные администратора по его идентификатору.' })
