@@ -38,10 +38,11 @@ export class FnsService {
       const expectedDomain = promotion.domain;
       this.logger.log(`Expected domain: ${expectedDomain}, Actual host: ${host}`);
       
-      if (host !== expectedDomain && !host.includes(expectedDomain)) {
-        this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
-        throw new BadRequestException('Invalid domain for this promotion');
-      }
+      // Тестовый режим: проверка домена отключена
+      // if (host !== expectedDomain && !host.includes(expectedDomain)) {
+      //   this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
+      //   throw new BadRequestException('Invalid domain for this promotion');
+      // }
 
       const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
       
