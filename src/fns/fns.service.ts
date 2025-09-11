@@ -38,11 +38,10 @@ export class FnsService {
       const expectedDomain = promotion.domain;
       this.logger.log(`Expected domain: ${expectedDomain}, Actual host: ${host}`);
       
-      // Временно отключаем проверку домена для тестирования
-      // if (host !== expectedDomain && !host.includes(expectedDomain)) {
-      //   this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
-      //   throw new BadRequestException('Invalid domain for this promotion');
-      // }
+      if (host !== expectedDomain && !host.includes(expectedDomain)) {
+        this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
+        throw new BadRequestException('Invalid domain for this promotion');
+      }
 
       const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
       
@@ -255,11 +254,21 @@ export class FnsService {
                          result.receiptData?.userInn ||
                          result.receiptData?.content?.inn ||
                          result.receiptData?.content?.userInn)?.toString().trim();
-      const organizationInn = process.env.ORGANIZATION_INN?.toString().trim();
-      
-      // Отладка переменной окружения
-      this.logger.debug(`Environment check: ORGANIZATION_INN = "${process.env.ORGANIZATION_INN}", trimmed = "${organizationInn}"`);
-      
+
+      let promotionInn: string | undefined;
+      try {
+        if (fnsRequest?.promotionId) {
+          const promo = await this.prisma.promotion.findUnique({
+            where: { promotionId: fnsRequest.promotionId },
+            select: { inn: true, name: true },
+          });
+          promotionInn = promo?.inn?.toString().trim();
+          this.logger.debug(`Promotion INN lookup: promotionId=${fnsRequest.promotionId}, name=${promo?.name}, inn=${promotionInn}`);
+        }
+      } catch (e) {
+        this.logger.warn(`Failed to load promotion INN for promotionId=${fnsRequest?.promotionId}: ${e?.message || e}`);
+      }
+
       this.logger.debug(`Receipt data structure: ${JSON.stringify({
         'receiptData.inn': result.receiptData?.inn,
         'receiptData.userInn': result.receiptData?.userInn,
@@ -267,7 +276,7 @@ export class FnsService {
         'receiptData.content.userInn': result.receiptData?.content?.userInn,
         'receiptData.user': result.receiptData?.user,
         foundInn: receiptInn,
-        organizationInn: organizationInn
+        promotionInn: promotionInn
       })}`);
       
       if (!receiptInn) {
@@ -281,18 +290,18 @@ export class FnsService {
         return;
       }
       
-      if (receiptInn !== organizationInn) {
-        this.logger.warn(`Request ${requestId}: INN mismatch. Receipt INN: ${receiptInn}, Organization INN: ${organizationInn}`);
+      if (promotionInn && receiptInn !== promotionInn) {
+        this.logger.warn(`Request ${requestId}: INN mismatch. Receipt INN: ${receiptInn}, Promotion INN: ${promotionInn}`);
         
         if (fnsRequest?.promotionId && customerId) {
           await this.createAdminNotification(
             'suspicious_activity',
             'Чек с неправильным ИНН',
-            `Клиент отсканировал чек из другой организации. ИНН чека: ${receiptInn}, ожидаемый ИНН: ${organizationInn}. Request ID: ${requestId}`,
+            `Клиент отсканировал чек из другой подсети. ИНН чека: ${receiptInn}, ожидаемый ИНН: ${promotionInn}. Request ID: ${requestId}`,
             fnsRequest.promotionId,
             customerId,
             requestId,
-            { receiptInn, expectedInn: organizationInn, qrData: result.qrData }
+            { receiptInn, expectedInn: promotionInn, qrData: result.qrData }
           );
         }
         
@@ -300,7 +309,7 @@ export class FnsService {
           isReturn: false,
           isFake: false,
           fnsResponse: result,
-          rejectionReason: 'WRONG_ORGANIZATION_INN',
+          rejectionReason: 'WRONG_PROMOTION_INN',
         });
         return;
       }
