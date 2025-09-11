@@ -27,6 +27,6 @@ import { AuthCustomerService } from './auth-customer.service';
     forwardRef(() => PromotionsModule),
     CustomersModule,
   ],
-  exports: [AuthGuard, AuthService],
+  exports: [AuthGuard, AuthService, AuthCustomerService],
 })
 export class AuthModule {}
