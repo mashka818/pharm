@@ -26,7 +26,10 @@ async function bootstrap() {
   const port = process.env.PORT || 4000;
 
   const corsOptions: CorsOptions = {
-    origin: 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'https://xn----itbkgreg1a1b.xn--p1ai',
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   };
