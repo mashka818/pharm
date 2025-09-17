@@ -43,6 +43,20 @@ export class CustomersService {
     return await this.prisma.customer.findMany({ where: { email } });
   }
 
+  async getAll(): Promise<CustomerDto[]> {
+    const customers = await this.prisma.customer.findMany();
+    return customers.map(({ password, ...rest }) => rest as unknown as CustomerDto);
+  }
+
+  async remove(id: number): Promise<{ message: string }>{
+    const existing = await this.prisma.customer.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Customer not found');
+    }
+    await this.prisma.customer.delete({ where: { id } });
+    return { message: 'Customer deleted' };
+  }
+
   async confirmByEmail(email: string) {
     const unconfirmed = await this.prisma.unconfirmedCustomer.findFirst({ where: { email } });
     if (!unconfirmed) {

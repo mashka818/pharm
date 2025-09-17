@@ -10,6 +10,7 @@ import { UserOwnershipGuard } from 'src/auth/guards/user-ownership.guard';
 import { ApiBody, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { CustomersService } from 'src/customers/customers.service';
+import { ApiOkResponse } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @UseGuards(AdminGuard)
@@ -21,6 +22,20 @@ export class AdminsController {
     private readonly authCustomerService: AuthCustomerService,
     private readonly customersService: CustomersService,
   ) {}
+  @ApiOperation({ summary: 'Список всех пользователей' })
+  @ApiOkResponse({ description: 'Успешно', isArray: true })
+  @Get('customers')
+  getAllCustomers() {
+    return this.customersService.getAll();
+  }
+
+  @ApiOperation({ summary: 'Удалить пользователя по ID' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ description: 'Пользователь удалён' })
+  @Delete('customers/:id')
+  removeCustomer(@Param('id') id: number) {
+    return this.customersService.remove(Number(id));
+  }
 
   getAdminByUsername(username: LoginAdminDto['username']) {
     return this.adminsService.getAdminByUsername(username);
