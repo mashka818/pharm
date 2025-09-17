@@ -53,7 +53,45 @@ export class CustomersService {
     if (!existing) {
       throw new NotFoundException('Customer not found');
     }
-    await this.prisma.customer.delete({ where: { id } });
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1) Cashbacks → CashbackItems → Cashbacks
+      const cashbackIds = (
+        await tx.cashback.findMany({
+          where: { customerId: id },
+          select: { id: true },
+        })
+      ).map((c) => c.id);
+      if (cashbackIds.length > 0) {
+        await tx.cashbackItem.deleteMany({ where: { cashbackId: { in: cashbackIds } } });
+        await tx.cashback.deleteMany({ where: { id: { in: cashbackIds } } });
+      }
+
+      // 2) Withdrawals → WithdrawalVariants
+      const wvIds = (
+        await tx.withdrawalVariant.findMany({
+          where: { customerId: id },
+          select: { id: true },
+        })
+      ).map((w) => w.id);
+      if (wvIds.length > 0) {
+        await tx.withdrawal.deleteMany({ where: { withdrawalVariantId: { in: wvIds } } });
+        await tx.withdrawalVariant.deleteMany({ where: { id: { in: wvIds } } });
+      }
+
+      // 3) Admin notifications linked to customer
+      await tx.adminNotification.deleteMany({ where: { customerId: id } });
+
+      // 4) FNS requests linked to customer
+      await tx.fnsRequest.deleteMany({ where: { customerId: id } });
+
+      // 5) Receipts: detach customer
+      await tx.receipt.updateMany({ where: { customerId: id }, data: { customerId: null } });
+
+      // 6) Finally delete customer
+      await tx.customer.delete({ where: { id } });
+    });
+
     return { message: 'Customer deleted' };
   }
 
