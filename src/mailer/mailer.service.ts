@@ -8,11 +8,15 @@ export class MailerService {
   constructor() {
     this.transporter = nodemailer.createTransport({
       host: 'smtp.yandex.ru',
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false, // STARTTLS
       auth: {
         user: process.env.YANDEX_ADDRESS,
         pass: process.env.YANDEX_PASS,
+      },
+      tls: {
+        rejectUnauthorized: true,
+        servername: 'smtp.yandex.ru',
       },
     });
   }
@@ -29,7 +33,7 @@ export class MailerService {
     try {
       await this.transporter.sendMail({
         ...mailOptions,
-        from: process.env.YANDEX_ADDRESS,
+        from: `Pharm Vision <${process.env.YANDEX_ADDRESS}>`,
       });
       return { isSuccess: true };
     } catch (error) {
