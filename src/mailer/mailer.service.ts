@@ -38,6 +38,17 @@ export class MailerService {
         ...mailOptions,
         from: `Pharm Vision <${process.env.YANDEX_ADDRESS}>`,
         sender: process.env.YANDEX_ADDRESS,
+        // Явно задаём SMTP envelope, чтобы Return-Path совпадал с авторизацией
+        envelope: {
+          from: process.env.YANDEX_ADDRESS,
+          to: Array.isArray((mailOptions as any).to)
+            ? (mailOptions as any).to
+            : [(mailOptions as any).to],
+        },
+        // На случай, если провайдеру требуется текстовая версия
+        text:
+          (mailOptions as any).text ||
+          (mailOptions as any).html?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
       });
       this.logger.log(`Mail sent: accepted=${(info.accepted||[]).join(',')}, rejected=${(info.rejected||[]).join(',')}, response=${info.response}`);
       return { isSuccess: true };
@@ -61,6 +72,15 @@ export class MailerService {
           ...mailOptions,
           from: `Pharm Vision <${process.env.YANDEX_ADDRESS}>`,
           sender: process.env.YANDEX_ADDRESS,
+          envelope: {
+            from: process.env.YANDEX_ADDRESS,
+            to: Array.isArray((mailOptions as any).to)
+              ? (mailOptions as any).to
+              : [(mailOptions as any).to],
+          },
+          text:
+            (mailOptions as any).text ||
+            (mailOptions as any).html?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
         });
         this.logger.log(`Mail sent via 465 fallback: accepted=${(info2.accepted||[]).join(',')}, rejected=${(info2.rejected||[]).join(',')}, response=${info2.response}`);
         return { isSuccess: true };
