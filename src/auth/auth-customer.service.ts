@@ -54,8 +54,8 @@ export class AuthCustomerService {
     const siteLink = `https://xn----itbkgreg1a1b.xn--p1ai/auth/confirm/${createdCustomer.confirmationToken}`;
 
     const res = await this.mailerService.sendMail({
-      subject: 'Подтверждение регистрации',
-      html: `Для подтверждения почты перейдите по ссылке: <a href="${siteLink}">Подтвердить</a>`,
+      subject: 'Email confirmation',
+      text: `Confirm your email: ${siteLink}`,
       to: createCustomerDto.email,
     });
 
