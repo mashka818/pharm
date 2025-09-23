@@ -51,13 +51,11 @@ export class AuthCustomerService {
 
     const createdCustomer = await this.unconfirmedCustomersService.createUnconfirmed(customer);
 
-    const siteLink = `https://чек-поинт.рф/auth/confirm/${createdCustomer.confirmationToken}`;
-    const ipLink = `http://91.236.198.205/auth/confirm/${createdCustomer.confirmationToken}`;
+    const siteLink = `https://xn----itbkgreg1a1b.xn--p1ai/auth/confirm/${createdCustomer.confirmationToken}`;
 
     const res = await this.mailerService.sendMail({
       subject: 'Подтверждение регистрации',
-      html: `Для подтверждения почты перейдите по ссылке сайта: <a href="${siteLink}">чек-поинт.рф</a><br/>\
-или по ссылке по IP: <a href="${ipLink}">91.236.198.205</a>`,
+      html: `Для подтверждения почты перейдите по ссылке: <a href="${siteLink}">Подтвердить</a>`,
       to: createCustomerDto.email,
     });
 
