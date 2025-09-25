@@ -35,4 +35,16 @@ export class WithdrawalVariantsService {
     await this.prisma.withdrawalVariant.delete({ where: { id } });
     return 'Withdrawal variant has been deleted';
   }
+
+  async setMain(id: number, customerId: number) {
+    const variant = await this.getOne(id);
+    if (!variant) {
+      throw new NotFoundException('Withdrawal variant not found');
+    }
+    if (variant.customerId !== customerId) {
+      throw new ForbiddenException('You have no permission to change this withdrawal variant');
+    }
+    await this.prisma.customer.update({ where: { id: customerId }, data: { mainWithdrawalVariant: id } });
+    return 'Main withdrawal variant has been set';
+  }
 }

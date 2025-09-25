@@ -12,6 +12,7 @@ import { CustomersUpdateService } from './customers-update.service';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { confirmEmailDto, UpdateEmailDto } from './dto/update-email.dto';
 import { LoginResponseDto } from 'src/auth/dto/login-response.dto';
+import { ApiParam } from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @ApiTags('Customer')
@@ -122,5 +123,19 @@ export class CustomersController {
   confirmMyEmail(@Request() req: IRequestWithUser, @Body() { token }: { token: string }) {
     const user = req.user;
     return this.customersUpdateService.confirmEmail(token, user.id);
+  }
+
+  @ApiOperation({ summary: 'Установить основной вариант вывода средств', description: 'Устанавливает выбранный вариант вывода средств как основной для текущего клиента.' })
+  @ApiResponse({ status: 200, description: 'Основной вариант установлен' })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  @ApiResponse({ status: 404, description: 'Вариант не найден' })
+  @Post('/me/withdrawal-variants/:id/set-main')
+  @ApiParam({ name: 'id', type: Number })
+  setMainWithdrawalVariant(@Request() req: IRequestWithUser, @Body() body: any) {
+    const user = req.user;
+    const id = Number((req as any).params.id);
+    return this.withdrawalVariantsService.setMain(id, user.id);
   }
 }
