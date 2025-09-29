@@ -114,6 +114,57 @@ export class AuthService {
     }
   }
 
+  async unifiedLogin(emailOrUsername: string, password: string, promotionId?: string): Promise<LoginResponseDto> {
+    let user: any = null;
+    let role: string = '';
+
+    try {
+      user = await this.validateAdmin(emailOrUsername, password);
+      if (user) {
+        role = 'ADMIN';
+        const payload = { id: user.id, username: user.username, role: user.role };
+        return this.getTokensByPayload(payload);
+      }
+    } catch (error) {
+      // Продолжаем попытку авторизации как клиент
+    }
+
+    try {
+      user = await this.validateCompany(emailOrUsername, password);
+      if (user) {
+        role = 'COMPANY';
+        const payload = { id: user.id, username: user.username, role: user.role, promotionId: user.promotionId };
+        return this.getTokensByPayload(payload);
+      }
+    } catch (error) {
+      // Продолжаем попытку авторизации как клиент
+    }
+
+    if (!promotionId) {
+      throw new UnauthorizedException('Неверная почта/логин или пароль');
+    }
+
+    try {
+      user = await this.validateCustomer(emailOrUsername, password, promotionId);
+      if (user) {
+        role = 'CUSTOMER';
+        const payload = { 
+          id: user.id, 
+          email: user.email, 
+          role: user.role,
+          promotionId: user.promotionId,
+          name: user.name,
+          surname: user.surname
+        };
+        return this.getTokensByPayload(payload);
+      }
+    } catch (error) {
+      // Все попытки неудачны
+    }
+
+    throw new UnauthorizedException('Неверная почта/логин или пароль');
+  }
+
   async refresh(refresh: string) {
     try {
       const payload = this.jwtService.verify(refresh);

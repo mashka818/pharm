@@ -12,6 +12,7 @@ import { LoginCustomerDto as AuthLoginCustomerDto } from './dto/login-customer.d
 import { Public } from 'src/decorators/public.decorator';
 import { RegistrationResponseDto } from './dto/registration-response.dto';
 import { ConfirmationResponseDto } from './dto/confirmation-response.dto';
+import { UnifiedLoginDto } from './dto/unified-login.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -101,6 +102,30 @@ export class AuthController {
       loginCustomerDto.email, 
       loginCustomerDto.password, 
       loginCustomerDto.promotionId
+    );
+  }
+
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Успешная авторизация',
+    type: LoginResponseDto 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неверная почта/логин или пароль' 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Ошибка валидации данных' 
+  })
+  @ApiBody({ type: UnifiedLoginDto })
+  @Public()
+  @Post('login')
+  unifiedLogin(@Body() unifiedLoginDto: UnifiedLoginDto) {
+    return this.authService.unifiedLogin(
+      unifiedLoginDto.emailOrUsername,
+      unifiedLoginDto.password,
+      unifiedLoginDto.promotionId
     );
   }
 }
