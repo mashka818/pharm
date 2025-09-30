@@ -1,11 +1,11 @@
-import { Body, Controller, Get, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Request, UseGuards, Query, BadRequestException } from '@nestjs/common';
 import { CustomersService } from './customers.service';
 import { AuthGuard } from 'src/auth/guards/auth.guard';
 import { IRequestWithUser } from 'src/auth/types/all-users.type';
 import { WithdrawalVariantsService } from 'src/withdrawal-variants/withdrawal-variants.service';
 import { CreateWithdrawalVariantDto } from 'src/withdrawal-variants/dto/create-withdrawal-variant.dto';
 import { UpdateCustomerDto } from './dto/update-customer-dto';
-import { ApiBody, ApiResponse, ApiTags, OmitType, PickType, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBody, ApiResponse, ApiTags, OmitType, PickType, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CustomerDto } from './dto/customer.dto';
 import { UpdateWithdrawalVariantDto } from 'src/withdrawal-variants/dto/update-withdrawal-variant.dto';
 import { CustomersUpdateService } from './customers-update.service';
@@ -13,6 +13,7 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { confirmEmailDto, UpdateEmailDto } from './dto/update-email.dto';
 import { LoginResponseDto } from 'src/auth/dto/login-response.dto';
 import { ApiParam } from '@nestjs/swagger';
+import { CashbackService } from 'src/cashback/cashback.service';
 
 @ApiBearerAuth()
 @ApiTags('Customer')
@@ -23,6 +24,7 @@ export class CustomersController {
     private readonly customersService: CustomersService,
     private readonly customersUpdateService: CustomersUpdateService,
     private readonly withdrawalVariantsService: WithdrawalVariantsService,
+    private readonly cashbackService: CashbackService,
   ) {}
 
   @ApiOperation({ summary: 'Получить данные о себе', description: 'Возвращает данные текущего авторизованного клиента.' })
@@ -137,5 +139,100 @@ export class CustomersController {
     const user = req.user;
     const id = Number((req as any).params.id);
     return this.withdrawalVariantsService.setMain(id, user.id);
+  }
+
+  @Get('/me/receipts')
+  @ApiOperation({ 
+    summary: 'Получить все чеки клиента',
+    description: 'Получает все чеки авторизованного клиента с детализацией по товарам и кэшбеку.'
+  })
+  @ApiQuery({
+    name: 'promotionId',
+    description: 'ID промоакции для фильтрации (необязательно)',
+    required: false,
+    type: String,
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Чеки клиента успешно получены',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' },
+          number: { type: 'number' },
+          date: { type: 'string', format: 'date-time' },
+          price: { type: 'number' },
+          address: { type: 'string' },
+          promotion: { type: 'object' },
+          products: { type: 'array' },
+          cashbacks: { type: 'array' }
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  async getMyReceipts(
+    @Request() req: IRequestWithUser,
+    @Query('promotionId') promotionId?: string,
+  ) {
+    const customerId = req.user?.id;
+    if (!customerId) {
+      throw new BadRequestException('User not authenticated');
+    }
+
+    return this.cashbackService.getCustomerReceipts(customerId, promotionId);
+  }
+
+  @Get('/me/cashback-statuses')
+  @ApiOperation({ 
+    summary: 'Получить статусы кэшбека клиента',
+    description: 'Получает все статусы кэшбека (начислен/отменен) для авторизованного клиента.'
+  })
+  @ApiQuery({
+    name: 'promotionId',
+    description: 'ID промоакции для фильтрации (необязательно)',
+    required: false,
+    type: String,
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Статусы кэшбека клиента успешно получены',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' },
+          amount: { type: 'number' },
+          status: { type: 'string', enum: ['начислен', 'отменен'] },
+          reason: { type: 'string' },
+          createdAt: { type: 'string', format: 'date-time' },
+          cancelledAt: { type: 'string', format: 'date-time' },
+          receipt: { type: 'object' },
+          promotion: { type: 'object' },
+          items: { type: 'array' }
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  async getMyCashbackStatuses(
+    @Request() req: IRequestWithUser,
+    @Query('promotionId') promotionId?: string,
+  ) {
+    const customerId = req.user?.id;
+    if (!customerId) {
+      throw new BadRequestException('User not authenticated');
+    }
+
+    return this.cashbackService.getCustomerCashbackStatuses(customerId, promotionId);
   }
 }

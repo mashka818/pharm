@@ -7,11 +7,12 @@ import { AuthModule } from 'src/auth/auth.module';
 import { WithdrawalVariantsModule } from 'src/withdrawal-variants/withdrawal-variants.module';
 import { CustomersUpdateService } from './customers-update.service';
 import { MailerModule } from 'src/mailer/mailer.module';
+import { CashbackModule } from 'src/cashback/cashback.module';
 
 @Module({
   controllers: [CustomersController],
   providers: [CustomersService, PrismaService, UnconfirmedCustomersService, CustomersUpdateService],
-  imports: [forwardRef(() => AuthModule), WithdrawalVariantsModule, MailerModule],
+  imports: [forwardRef(() => AuthModule), WithdrawalVariantsModule, MailerModule, CashbackModule],
   exports: [CustomersService, UnconfirmedCustomersService],
 })
 export class CustomersModule {}

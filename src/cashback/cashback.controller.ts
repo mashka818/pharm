@@ -57,7 +57,6 @@ export class CashbackController {
     this.logger.log(`Getting today's cashback history for promotion: ${promotionId}`);
     
     try {
-      // Проверяем, что пользователь - администратор
       if (req.user?.role !== 'ADMIN' && req.user?.role !== 'COMPANY') {
         throw new BadRequestException('Only administrators can access cashback history');
       }
@@ -113,7 +112,6 @@ export class CashbackController {
     this.logger.log(`Cancelling cashback ${cashbackId} by admin ${req.user?.id}`);
     
     try {
-      // Проверяем, что пользователь - администратор
       if (req.user?.role !== 'ADMIN' && req.user?.role !== 'COMPANY') {
         throw new BadRequestException('Only administrators can cancel cashback');
       }
@@ -135,56 +133,66 @@ export class CashbackController {
     }
   }
 
-  @Get('customer/history')
+  @Put(':id/confirm')
   @ApiOperation({ 
-    summary: 'Получить историю кэшбека для текущего клиента',
-    description: 'Получает всю историю начислений кэшбека для авторизованного клиента с детализацией по товарам и акциям.'
-  })
-  @ApiQuery({
-    name: 'promotionId',
-    description: 'ID промоакции для фильтрации (необязательно)',
-    required: false,
-    type: String,
+    summary: 'Подтвердить начисление кэшбека',
+    description: 'Подтверждает начисление кэшбека и списывает соответствующую сумму бонусов у клиента. Доступно только администраторам.'
   })
   @ApiResponse({ 
     status: 200, 
-    description: 'История кэшбека клиента успешно получена',
+    description: 'Кэшбек успешно подтвержден',
     schema: {
       type: 'object',
       properties: {
-        cashbacks: {
-          type: 'array',
-          items: { type: 'object' }
-        },
-        statistics: {
-          type: 'object',
-          properties: {
-            total: { type: 'number' },
-            active: { type: 'number' },
-            cancelled: { type: 'number' },
-            totalAmount: { type: 'number' },
-            cancelledAmount: { type: 'number' }
-          }
-        }
+        success: { type: 'boolean' },
+        confirmedAmount: { type: 'number' },
+        message: { type: 'string' }
       }
     }
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Ошибка валидации или кэшбек уже отменен' 
   })
   @ApiResponse({ 
     status: 401, 
     description: 'Неавторизованный доступ' 
   })
-  async getCustomerCashbackHistory(
-    @Request() req: any,
-    @Query('promotionId') promotionId?: string,
+  @ApiResponse({ 
+    status: 403, 
+    description: 'Недостаточно прав доступа' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Кэшбек не найден' 
+  })
+  async confirmCashback(
+    @Param('id', ParseIntPipe) cashbackId: number,
+    @Request() req: any
   ) {
-    const customerId = req.user?.id;
-    if (!customerId) {
-      throw new BadRequestException('User not authenticated');
-    }
+    this.logger.log(`Confirming cashback ${cashbackId} by admin ${req.user?.id}`);
+    
+    try {
+      if (req.user?.role !== 'ADMIN' && req.user?.role !== 'COMPANY') {
+        throw new BadRequestException('Only administrators can confirm cashback');
+      }
 
-    this.logger.log(`Getting cashback history for customer ${customerId}, promotion: ${promotionId}`);
-    return this.cashbackService.getCustomerCashbackHistory(customerId, promotionId);
+      const result = await this.cashbackService.confirmCashback(
+        cashbackId,
+        req.user.id
+      );
+
+      this.logger.log(`Successfully confirmed cashback ${cashbackId}`);
+      return {
+        ...result,
+        message: `Кэшбек на сумму ${result.confirmedAmount} копеек успешно подтвержден`
+      };
+    } catch (error) {
+      this.logger.error(`Error confirming cashback ${cashbackId}:`, error);
+      throw error;
+    }
   }
+
 
   @Get('details/:cashbackId')
   @ApiOperation({ 
@@ -211,7 +219,6 @@ export class CashbackController {
     const customerId = req.user?.id;
     this.logger.log(`Getting cashback details for ID ${cashbackId}, customer: ${customerId}`);
     
-    // Для клиентов ограничиваем доступ только к их кэшбекам
     return this.cashbackService.getCashbackDetails(cashbackId, customerId);
   }
 
@@ -259,14 +266,12 @@ export class CashbackController {
     this.logger.log(`Getting today's cashback stats for promotion: ${promotionId}`);
     
     try {
-      // Проверяем, что пользователь - администратор
       if (req.user?.role !== 'ADMIN' && req.user?.role !== 'COMPANY') {
         throw new BadRequestException('Only administrators can access cashback statistics');
       }
 
       const history = await this.cashbackService.getTodaysCashbackHistory(promotionId);
       
-      // Рассчитываем статистику
       const stats = {
         totalCashback: history.reduce((sum, item) => sum + item.amount, 0),
         totalTransactions: history.length,
@@ -284,9 +289,6 @@ export class CashbackController {
     }
   }
 
-  /**
-   * Вспомогательный метод для расчета топ акций
-   */
   private calculateTopOffers(history: any[]) {
     const offerStats = new Map();
 
@@ -309,6 +311,7 @@ export class CashbackController {
 
     return Array.from(offerStats.values())
       .sort((a, b) => b.totalCashback - a.totalCashback)
-      .slice(0, 10); // Топ 10 акций
+      .slice(0, 10); 
   }
+
 }
