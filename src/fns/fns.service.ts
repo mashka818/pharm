@@ -26,7 +26,7 @@ export class FnsService {
   async processScanQrCode(qrData: ScanQrCodeDto, customerId: number, promotionId: string, host: string) {
     this.logger.log(`Processing QR scan for customer ${customerId}, promotion ${promotionId}, host: ${host}`);
     
-    try {
+    try { 
       const promotion = await this.prisma.promotion.findUnique({
         where: { promotionId },
       });
@@ -38,11 +38,10 @@ export class FnsService {
       const expectedDomain = promotion.domain;
       this.logger.log(`Expected domain: ${expectedDomain}, Actual host: ${host}`);
       
-      // Тестовый режим: проверка домена отключена
-      // if (host !== expectedDomain && !host.includes(expectedDomain)) {
-      //   this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
-      //   throw new BadRequestException('Invalid domain for this promotion');
-      // }
+      if (host !== expectedDomain && !host.includes(expectedDomain)) {
+        this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
+        throw new BadRequestException('Invalid domain for this promotion');
+      }
 
       const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
       
