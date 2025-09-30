@@ -4,7 +4,6 @@ import {
   Put, 
   Param, 
   Body, 
-  UseGuards, 
   Request,
   Query,
   ParseIntPipe,
@@ -15,12 +14,10 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { CashbackService } from './cashback.service';
 import { CancelCashbackDto } from './dto/cancel-cashback.dto';
 import { CashbackHistoryItemDto } from './dto/cashback-history.dto';
-import { AuthGuard } from '../auth/guards/auth.guard';
 
 @ApiTags('Cashback Management')
 @Controller('cashback')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
 export class CashbackController {
   private readonly logger = new Logger(CashbackController.name);
 

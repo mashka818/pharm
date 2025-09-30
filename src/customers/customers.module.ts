@@ -12,7 +12,7 @@ import { CashbackModule } from 'src/cashback/cashback.module';
 @Module({
   controllers: [CustomersController],
   providers: [CustomersService, PrismaService, UnconfirmedCustomersService, CustomersUpdateService],
-  imports: [forwardRef(() => AuthModule), WithdrawalVariantsModule, MailerModule, CashbackModule],
+  imports: [forwardRef(() => AuthModule), WithdrawalVariantsModule, MailerModule, forwardRef(() => CashbackModule)],
   exports: [CustomersService, UnconfirmedCustomersService],
 })
 export class CustomersModule {}

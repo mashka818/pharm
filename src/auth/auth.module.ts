@@ -25,7 +25,7 @@ import { AuthCustomerService } from './auth-customer.service';
     }),
     MailerModule,
     forwardRef(() => PromotionsModule),
-    CustomersModule,
+    forwardRef(() => CustomersModule),
   ],
   exports: [AuthGuard, AuthService, AuthCustomerService],
 })
