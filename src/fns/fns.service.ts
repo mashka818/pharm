@@ -39,8 +39,8 @@ export class FnsService {
       this.logger.log(`Expected domain: ${expectedDomain}, Actual host: ${host}`);
       
       if (host !== expectedDomain && !host.includes(expectedDomain)) {
-        this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
-        throw new BadRequestException('Invalid domain for this promotion');
+      this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
+      throw new BadRequestException('Invalid domain for this promotion');
       }
 
       const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
