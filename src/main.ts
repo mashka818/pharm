@@ -5,9 +5,11 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -16,6 +18,10 @@ async function bootstrap() {
   );
 
   app.setGlobalPrefix('api');
+
+  app.useStaticAssets(join(__dirname, '..', 'static'), {
+    prefix: '/static/',
+  });
 
   app.useGlobalGuards(app.get(AuthGuard));
 
