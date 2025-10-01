@@ -65,9 +65,80 @@ export class PromotionsService {
   async remove(promotionId: string): Promise<string> {
     const promotion = await this.findOne(promotionId);
 
-    await this.prisma.customer.updateMany({
-      where: { promotionId },
-      data: { promotionId: null }
+    await this.prisma.$transaction(async (prisma) => {
+      const receiptsToDelete = await prisma.receipt.findMany({
+        where: { promotionId },
+        select: { id: true }
+      });
+      const receiptIds = receiptsToDelete.map(r => r.id);
+
+      if (receiptIds.length > 0) {
+        await prisma.receiptProduct.deleteMany({
+          where: { receiptId: { in: receiptIds } }
+        });
+      }
+
+      const customersToDelete = await prisma.customer.findMany({
+        where: { promotionId },
+        select: { id: true }
+      });
+      const customerIds = customersToDelete.map(c => c.id);
+
+      if (customerIds.length > 0) {
+        await prisma.withdrawalVariant.deleteMany({
+          where: { customerId: { in: customerIds } }
+        });
+      }
+
+      const cashbacksToDelete = await prisma.cashback.findMany({
+        where: { promotionId },
+        select: { id: true }
+      });
+      const cashbackIds = cashbacksToDelete.map(c => c.id);
+
+      if (cashbackIds.length > 0) {
+        await prisma.cashbackItem.deleteMany({
+          where: { cashbackId: { in: cashbackIds } }
+        });
+      }
+
+      const productsToDelete = await prisma.product.findMany({
+        where: { promotionId },
+        select: { id: true }
+      });
+      const productIds = productsToDelete.map(p => p.id);
+
+      if (productIds.length > 0) {
+        await prisma.productOffer.deleteMany({
+          where: { productId: { in: productIds } }
+        });
+      }
+
+      const offersToDelete = await prisma.offer.findMany({
+        where: { promotionId },
+        select: { conditionId: true }
+      });
+      const conditionIds = offersToDelete
+        .map(o => o.conditionId)
+        .filter((id): id is number => id !== null);
+
+      if (conditionIds.length > 0) {
+        await prisma.offerCondition.deleteMany({
+          where: { id: { in: conditionIds } }
+        });
+      }
+
+      await prisma.adminNotification.deleteMany({ where: { promotionId } });
+      await prisma.cashback.deleteMany({ where: { promotionId } });
+      await prisma.receipt.deleteMany({ where: { promotionId } });
+      await prisma.fnsRequest.deleteMany({ where: { promotionId } });
+      await prisma.customer.deleteMany({ where: { promotionId } });
+      await prisma.product.deleteMany({ where: { promotionId } });
+      await prisma.brand.deleteMany({ where: { promotionId } });
+      await prisma.offer.deleteMany({ where: { promotionId } });
+      await prisma.company.deleteMany({ where: { promotionId } });
+
+      await prisma.promotion.delete({ where: { promotionId } });
     });
 
     this.filesService.deleteFile(promotion.logo);
@@ -76,8 +147,6 @@ export class PromotionsService {
     if (promotion.banner) {
       this.filesService.deleteFile(promotion.banner);
     }
-
-    await this.prisma.promotion.delete({ where: { promotionId } });
 
     return `Promotion with id:${promotionId} is deleted`;
   }
