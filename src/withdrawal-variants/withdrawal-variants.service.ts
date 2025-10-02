@@ -19,6 +19,20 @@ export class WithdrawalVariantsService {
     createWithdrawalVariantDto: CreateWithdrawalVariantDto,
     customerId: number,
   ): Promise<UpdateWithdrawalVariantDto> {
+    const existing = await this.prisma.withdrawalVariant.findFirst({
+      where: {
+        title: createWithdrawalVariantDto.title,
+      },
+    });
+
+    if (existing) {
+      if (existing.customerId === customerId) {
+        throw new ForbiddenException('Вы уже добавили этот способ вывода средств');
+      } else {
+        throw new ForbiddenException('Этот номер уже используется другим пользователем');
+      }
+    }
+
     return await this.prisma.withdrawalVariant.create({
       data: { ...createWithdrawalVariantDto, customerId },
     });

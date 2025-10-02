@@ -300,7 +300,7 @@ model Cashback {
   promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
   
   amount        Int              
-  status        CashbackStatus   @default(active)
+  status        CashbackStatus   @default(pending)
   reason        String?          
   
   cancelledBy   Int?
@@ -390,7 +390,6 @@ enum ReceiptStaus {
   failed
 }
 
-// Уведомления для администраторов
 model AdminNotification {
   id            String                   @id @default(uuid())
   type          AdminNotificationType
@@ -418,6 +417,7 @@ enum AdminNotificationType {
 }
 
 enum CashbackStatus {
+  pending
   active
   cancelled
 }
