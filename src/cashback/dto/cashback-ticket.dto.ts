@@ -1,11 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, IsInt } from 'class-validator';
-
-export enum TicketStatus {
-  pending = 'pending',
-  approved = 'approved',
-  rejected = 'rejected',
-}
+import { TicketStatus } from '@prisma/client';
 
 export class CreateCashbackTicketDto {
   @ApiProperty({
