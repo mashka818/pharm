@@ -2,6 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, IsInt } from 'class-validator';
 import { TicketStatus } from '@prisma/client';
 
+export { TicketStatus };
+
 export class CreateCashbackTicketDto {
   @ApiProperty({
     description: 'ID кешбека для создания тикета',
