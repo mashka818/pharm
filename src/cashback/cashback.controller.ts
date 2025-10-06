@@ -2,6 +2,7 @@ import {
   Controller, 
   Get, 
   Put, 
+  Post,
   Param, 
   Body, 
   Request,
@@ -12,8 +13,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CashbackService } from './cashback.service';
+import { CashbackTicketsService } from './cashback-tickets.service';
 import { CancelCashbackDto } from './dto/cancel-cashback.dto';
 import { CashbackHistoryItemDto } from './dto/cashback-history.dto';
+import { CreateCashbackTicketDto, UpdateCashbackTicketDto, CashbackTicketDto } from './dto/cashback-ticket.dto';
 
 @ApiTags('Cashback Management')
 @Controller('cashback')
@@ -21,7 +24,10 @@ import { CashbackHistoryItemDto } from './dto/cashback-history.dto';
 export class CashbackController {
   private readonly logger = new Logger(CashbackController.name);
 
-  constructor(private readonly cashbackService: CashbackService) {}
+  constructor(
+    private readonly cashbackService: CashbackService,
+    private readonly cashbackTicketsService: CashbackTicketsService,
+  ) {}
 
   @Get('history/today')
   @ApiOperation({ 
@@ -309,6 +315,178 @@ export class CashbackController {
     return Array.from(offerStats.values())
       .sort((a, b) => b.totalCashback - a.totalCashback)
       .slice(0, 10); 
+  }
+
+  @Post('tickets')
+  @ApiOperation({ 
+    summary: 'Создать тикет для кешбека',
+    description: 'Создает тикет для кешбека со статусом pending, чтобы администратор мог его рассмотреть.'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Тикет успешно создан',
+    type: CashbackTicketDto
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Ошибка валидации или тикет уже существует' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Кешбек не найден' 
+  })
+  async createTicket(
+    @Body() createTicketDto: CreateCashbackTicketDto,
+    @Request() req: any
+  ): Promise<CashbackTicketDto> {
+    const customerId = req.user?.id;
+    this.logger.log(`Creating ticket for cashback ${createTicketDto.cashbackId} by customer ${customerId}`);
+    
+    return this.cashbackTicketsService.createTicket(createTicketDto, customerId);
+  }
+
+  @Get('tickets/my')
+  @ApiOperation({ 
+    summary: 'Получить мои тикеты',
+    description: 'Получает все тикеты текущего клиента.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Тикеты успешно получены',
+    type: [CashbackTicketDto]
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  async getMyTickets(@Request() req: any): Promise<CashbackTicketDto[]> {
+    const customerId = req.user?.id;
+    this.logger.log(`Getting tickets for customer ${customerId}`);
+    
+    return this.cashbackTicketsService.getCustomerTickets(customerId);
+  }
+
+  @Get('tickets')
+  @ApiOperation({ 
+    summary: 'Получить все тикеты (админ)',
+    description: 'Получает все тикеты для администратора.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Тикеты успешно получены',
+    type: [CashbackTicketDto]
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  @ApiResponse({ 
+    status: 403, 
+    description: 'Недостаточно прав доступа' 
+  })
+  async getAllTickets(@Request() req: any): Promise<CashbackTicketDto[]> {
+    if (req.user?.role !== 'ADMIN') {
+      throw new BadRequestException('Only administrators can access all tickets');
+    }
+    
+    this.logger.log(`Getting all tickets by admin ${req.user.id}`);
+    return this.cashbackTicketsService.getAllTickets();
+  }
+
+  @Get('tickets/pending')
+  @ApiOperation({ 
+    summary: 'Получить ожидающие тикеты (админ)',
+    description: 'Получает все тикеты со статусом pending для администратора.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Ожидающие тикеты успешно получены',
+    type: [CashbackTicketDto]
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  @ApiResponse({ 
+    status: 403, 
+    description: 'Недостаточно прав доступа' 
+  })
+  async getPendingTickets(@Request() req: any): Promise<CashbackTicketDto[]> {
+    if (req.user?.role !== 'ADMIN') {
+      throw new BadRequestException('Only administrators can access pending tickets');
+    }
+    
+    this.logger.log(`Getting pending tickets by admin ${req.user.id}`);
+    return this.cashbackTicketsService.getPendingTickets();
+  }
+
+  @Get('tickets/:id')
+  @ApiOperation({ 
+    summary: 'Получить тикет по ID',
+    description: 'Получает детальную информацию о тикете по его ID.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Тикет успешно получен',
+    type: CashbackTicketDto
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Тикет не найден' 
+  })
+  async getTicketById(
+    @Param('id', ParseIntPipe) ticketId: number,
+    @Request() req: any
+  ): Promise<CashbackTicketDto> {
+    this.logger.log(`Getting ticket ${ticketId} by user ${req.user?.id}`);
+    return this.cashbackTicketsService.getTicketById(ticketId);
+  }
+
+  @Put('tickets/:id/status')
+  @ApiOperation({ 
+    summary: 'Обновить статус тикета (админ)',
+    description: 'Обновляет статус тикета (approved/rejected) и соответствующий статус кешбека.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Статус тикета успешно обновлен',
+    type: CashbackTicketDto
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Ошибка валидации или тикет уже обработан' 
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  @ApiResponse({ 
+    status: 403, 
+    description: 'Недостаточно прав доступа' 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Тикет не найден' 
+  })
+  async updateTicketStatus(
+    @Param('id', ParseIntPipe) ticketId: number,
+    @Body() updateTicketDto: UpdateCashbackTicketDto,
+    @Request() req: any
+  ): Promise<CashbackTicketDto> {
+    if (req.user?.role !== 'ADMIN') {
+      throw new BadRequestException('Only administrators can update ticket status');
+    }
+    
+    this.logger.log(`Updating ticket ${ticketId} status to ${updateTicketDto.status} by admin ${req.user.id}`);
+    return this.cashbackTicketsService.updateTicketStatus(ticketId, updateTicketDto, req.user.id);
   }
 
 }

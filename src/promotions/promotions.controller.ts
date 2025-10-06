@@ -80,11 +80,9 @@ export class PromotionsController {
     return this.promotionsService.create(promotionDto, logo, banner, favicon);
   }
 
-  @UseGuards(AdminGuard)
+  @Public()
   @ApiOperation({ summary: 'Получить все промоакции', description: 'Возвращает список всех промоакций.' })
   @ApiResponse({ status: 200, description: 'Список промоакций', type: [PromotionDto] })
-  @ApiResponse({ status: 401, description: 'Неавторизован' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
   @ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
   @Get()
   findAll() {

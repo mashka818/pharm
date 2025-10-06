@@ -17,6 +17,7 @@ model Admin {
   role      AdminRole
 
   cancelledCashbacks Cashback[]
+  cashbackTickets    CashbackTicket[]
 
   @@map("admins")
 }
@@ -43,7 +44,8 @@ model Promotion {
   products    Product[]
   receipts    Receipt[]
   cashbacks   Cashback[]           
-  notifications AdminNotification[] 
+  notifications AdminNotification[]
+  cashbackTickets CashbackTicket[]
 
   @@map("promotions")
 }
@@ -171,7 +173,8 @@ model Customer {
   receipts              Receipt[]
   withdrawalVariants    WithdrawalVariant[]
   cashbacks             Cashback[]         
-  notifications         AdminNotification[] 
+  notifications         AdminNotification[]
+  cashbackTickets       CashbackTicket[]
 
   @@unique([email, promotionId])
   @@map("customers")
@@ -308,6 +311,7 @@ model Cashback {
   cancelledAt   DateTime?
   
   items         CashbackItem[]
+  tickets       CashbackTicket[]
   
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -409,6 +413,27 @@ model AdminNotification {
   @@map("admin_notifications")
 }
 
+model CashbackTicket {
+  id            Int              @id @default(autoincrement())
+  cashbackId    Int
+  cashback      Cashback         @relation(fields: [cashbackId], references: [id], onDelete: Cascade)
+  customerId    Int
+  customer      Customer         @relation(fields: [customerId], references: [id])
+  promotionId   String
+  promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
+  
+  status        TicketStatus     @default(pending)
+  adminId       Int?
+  admin         Admin?           @relation(fields: [adminId], references: [id])
+  adminComment  String?
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  resolvedAt    DateTime?
+  
+  @@map("cashback_tickets")
+}
+
 enum AdminNotificationType {
   suspicious_activity
   repeated_scan
@@ -420,4 +445,10 @@ enum CashbackStatus {
   pending
   active
   cancelled
+}
+
+enum TicketStatus {
+  pending
+  approved
+  rejected
 }
