@@ -7,8 +7,8 @@ export class CashbackHistoryItemDto {
   @ApiProperty({ description: 'Сумма кэшбека в копейках' })
   amount: number;
 
-  @ApiProperty({ description: 'Статус кэшбека', enum: CashbackStatus })
-  status: CashbackStatus;
+  @ApiProperty({ description: 'Статус кэшбека' })
+  status: string;
 
   @ApiProperty({ description: 'Причина отмены', nullable: true })
   reason?: string;

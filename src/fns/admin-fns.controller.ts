@@ -150,13 +150,10 @@ export class AdminFnsController {
 
     if (request.cashbacks && request.cashbacks.length > 0) {
       for (const cashback of request.cashbacks) {
-        await this.prisma.cashback.update({
+        // В новой логике кешбеки не отменяются, они просто начисляются
+        // Удаляем кешбек из базы данных
+        await this.prisma.cashback.delete({
           where: { id: cashback.id },
-          data: {
-            reason: `Сброшен админом: ${body.reason}`,
-            cancelledBy: req.user?.id,
-            cancelledAt: new Date(),
-          },
         });
 
         if (cashback.customerId) {

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from '../prisma.service';
 import { CreateCashbackTicketDto, UpdateCashbackTicketDto, CashbackTicketDto, TicketStatus } from './dto/cashback-ticket.dto';
 
 @Injectable()
@@ -24,7 +24,7 @@ export class CashbackTicketsService {
       throw new BadRequestException('Сумма должна быть больше 0');
     }
 
-    return await this.prisma.cashbackTicket.create({
+    return await (this.prisma as any).cashbackTicket.create({
       data: {
         customerId: customerId,
         promotionId: customer.promotionId,
@@ -35,7 +35,7 @@ export class CashbackTicketsService {
   }
 
   async getCustomerTickets(customerId: number): Promise<CashbackTicketDto[]> {
-    return await this.prisma.cashbackTicket.findMany({
+    return await (this.prisma as any).cashbackTicket.findMany({
       where: {
         customerId: customerId,
       },
@@ -46,7 +46,7 @@ export class CashbackTicketsService {
   }
 
   async getAllTickets(): Promise<CashbackTicketDto[]> {
-    return await this.prisma.cashbackTicket.findMany({
+    return await (this.prisma as any).cashbackTicket.findMany({
       include: {
         customer: true,
         promotion: true,
@@ -59,7 +59,7 @@ export class CashbackTicketsService {
   }
 
   async getPendingTickets(): Promise<CashbackTicketDto[]> {
-    return await this.prisma.cashbackTicket.findMany({
+    return await (this.prisma as any).cashbackTicket.findMany({
       where: {
         status: 'pending',
       },
@@ -78,7 +78,7 @@ export class CashbackTicketsService {
     updateTicketDto: UpdateCashbackTicketDto,
     adminId: number,
   ): Promise<CashbackTicketDto> {
-    const ticket = await this.prisma.cashbackTicket.findUnique({
+    const ticket = await (this.prisma as any).cashbackTicket.findUnique({
       where: { id: ticketId },
       include: {
         customer: true,
@@ -94,7 +94,7 @@ export class CashbackTicketsService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      const updatedTicket = await tx.cashbackTicket.update({
+      const updatedTicket = await (tx as any).cashbackTicket.update({
         where: { id: ticketId },
         data: {
           status: updateTicketDto.status,
@@ -120,7 +120,7 @@ export class CashbackTicketsService {
   }
 
   async getTicketById(ticketId: number): Promise<CashbackTicketDto> {
-    const ticket = await this.prisma.cashbackTicket.findUnique({
+    const ticket = await (this.prisma as any).cashbackTicket.findUnique({
       where: { id: ticketId },
       include: {
         customer: true,

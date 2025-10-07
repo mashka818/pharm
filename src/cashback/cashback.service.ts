@@ -15,7 +15,7 @@ export interface CashbackItemCalculation {
   totalPrice: number;
   cashbackAmount: number;
   cashbackType: 'percent' | 'amount';
-  cashbackRate?: number;
+  cashbackRate: number;
   productId?: number;
   offerId?: number;
   offerName?: string;
@@ -24,14 +24,14 @@ export interface CashbackItemCalculation {
 export interface ReceiptItem {
   name: string;
   sku?: string;
-  price: number;
   quantity: number;
+  price: number;
   total: number;
 }
 
 @Injectable()
 export class CashbackService {
-  private readonly logger = new Logger(CashbackService.name);
+  private readonly logger = new Logger(CashbackService.name)
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -43,19 +43,33 @@ export class CashbackService {
     this.logger.log(`Calculating cashback for customer ${customerId}, promotion ${promotionId}`);
 
     try {
+      const receiptItems: ReceiptItem[] = receiptData.items?.map((item: any) => ({
+        name: item.name || '',
+        sku: item.sku,
+        quantity: item.quantity || 1,
+        price: this.parsePrice(item.price),
+        total: this.parsePrice(item.sum),
+      })) || [];
+
       const activeOffers = await this.getActiveOffers(promotionId);
-      this.logger.log(`Found ${activeOffers.length} active offers`);
+      
+      if (activeOffers.length === 0) {
+        this.logger.log(`No active offers found for promotion ${promotionId}`);
+        return {
+          totalCashback: 0,
+          items: [],
+          appliedOffers: [],
+        };
+      }
 
-      const receiptItems = this.parseReceiptItems(receiptData);
-      this.logger.log(`Parsed ${receiptItems.length} receipt items`);
-
-      const result = await this.matchItemsWithOffersAndCalculate(receiptItems, activeOffers, promotionId);
-
-      this.logger.log(`Calculated total cashback: ${result.totalCashback}`);
-      return result;
+      return await this.matchItemsWithOffersAndCalculate(receiptItems, activeOffers, promotionId);
     } catch (error) {
       this.logger.error('Error calculating cashback:', error);
-      throw error;
+      return {
+        totalCashback: 0,
+        items: [],
+        appliedOffers: [],
+      };
     }
   }
 
@@ -131,24 +145,17 @@ export class CashbackService {
       });
 
       if (!cashback) {
-        throw new NotFoundException('Cashback not found');
+        throw new NotFoundException('Кешбек не найден');
       }
 
       if (false) {
-        throw new BadRequestException('Cashback already cancelled');
+        throw new BadRequestException('Кешбек уже отменен');
       }
 
-      if (cashback.customer.bonuses < cashback.amount) {
-        throw new BadRequestException('Customer does not have enough bonuses to cancel this cashback');
-      }
-
-      await tx.cashback.update({
+      // В новой логике кешбеки не отменяются, они просто начисляются
+      // Удаляем кешбек из базы данных
+      await tx.cashback.delete({
         where: { id: cashbackId },
-        data: {
-          reason,
-          cancelledBy: adminId,
-          cancelledAt: new Date(),
-        },
       });
 
       await tx.customer.update({
@@ -160,73 +167,16 @@ export class CashbackService {
         },
       });
 
-      if (cashback.fnsRequestId) {
-        await tx.fnsRequest.update({
-          where: { id: cashback.fnsRequestId },
-          data: {
-            cashbackAwarded: false,
-          },
-        });
-      }
-
-      this.logger.log(`Successfully cancelled cashback ${cashbackId}, refunded ${cashback.amount}`);
+      this.logger.log(`Successfully cancelled cashback ${cashbackId}, refunded ${cashback.amount} bonuses`);
       return { success: true, refundedAmount: cashback.amount };
     });
   }
 
-  async confirmCashback(
-    cashbackId: number,
-    adminId: number
-  ): Promise<{ success: boolean; confirmedAmount: number }> {
-    this.logger.log(`Confirming cashback ${cashbackId} by admin ${adminId}`);
+  async getTodaysCashbackHistory(promotionId?: string): Promise<any[]> {
+    this.logger.log(`Getting today's cashback history for promotion: ${promotionId}`);
 
-    return await this.prisma.$transaction(async (tx) => {
-      const cashback = await tx.cashback.findUnique({
-        where: { id: cashbackId },
-        include: { customer: true },
-      });
-
-      if (!cashback) {
-        throw new NotFoundException('Cashback not found');
-      }
-
-      if (false) {
-        throw new BadRequestException('Cannot confirm cancelled cashback');
-      }
-
-      if (cashback.customer.bonuses < cashback.amount) {
-        throw new BadRequestException('Customer does not have enough bonuses to confirm this cashback');
-      }
-
-      await tx.cashback.update({
-        where: { id: cashbackId },
-        data: {
-          reason: 'Подтвержден администратором',
-          cancelledBy: adminId,
-          cancelledAt: new Date(),
-        },
-      });
-
-      await tx.customer.update({
-        where: { id: cashback.customerId },
-        data: {
-          bonuses: {
-            decrement: cashback.amount,
-          },
-        },
-      });
-
-      this.logger.log(`Successfully confirmed cashback ${cashbackId}, deducted ${cashback.amount}`);
-      return { success: true, confirmedAmount: cashback.amount };
-    });
-  }
-
-  async getTodaysCashbackHistory(promotionId?: string) {
-    this.logger.log(`Getting today's cashback history for promotion: ${promotionId || 'all'}`);
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -239,7 +189,6 @@ export class CashbackService {
 
     if (promotionId) {
       whereClause.promotionId = promotionId;
-      this.logger.log(`Filtering by promotion: ${promotionId}`);
     }
 
     const cashbacks = await this.prisma.cashback.findMany({
@@ -249,7 +198,6 @@ export class CashbackService {
           select: {
             id: true,
             name: true,
-            surname: true,
             email: true,
           },
         },
@@ -257,11 +205,7 @@ export class CashbackService {
           select: {
             promotionId: true,
             name: true,
-          },
-        },
-          select: {
-            id: true,
-            username: true,
+            domain: true,
           },
         },
         items: {
@@ -271,6 +215,12 @@ export class CashbackService {
                 id: true,
                 name: true,
                 sku: true,
+                brand: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
             offer: {
@@ -288,18 +238,17 @@ export class CashbackService {
       },
     });
 
-    this.logger.log(`Found ${cashbacks.length} cashback records for today`);
-    
+    this.logger.log(`Retrieved ${cashbacks.length} cashback records for today`);
+
     if (promotionId && cashbacks.length === 0) {
       const totalCashbacks = await this.prisma.cashback.count({
-        where: { promotionId }
+        where: { promotionId },
       });
       this.logger.warn(`No cashbacks found for promotion ${promotionId} today, but found ${totalCashbacks} total cashbacks for this promotion`);
     }
 
     return cashbacks;
   }
-
 
   async getCustomerReceipts(customerId: number, promotionId?: string) {
     this.logger.log(`Getting receipts for customer ${customerId}, promotion: ${promotionId}`);
@@ -315,44 +264,11 @@ export class CashbackService {
     const receipts = await this.prisma.receipt.findMany({
       where: whereClause,
       include: {
-        promotion: {
-          select: {
-            promotionId: true,
-            name: true,
-            domain: true,
-          },
-        },
-        products: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-                brand: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-            offer: {
-              select: {
-                id: true,
-                profit: true,
-                profitType: true,
-              },
-            },
-          },
-        },
         cashbacks: {
           select: {
             id: true,
             amount: true,
             createdAt: true,
-            reason: true,
-            cancelledAt: true,
           },
         },
       },
@@ -362,7 +278,6 @@ export class CashbackService {
     });
 
     this.logger.log(`Retrieved ${receipts.length} receipt records for customer ${customerId}`);
-    
     return receipts;
   }
 
@@ -380,49 +295,16 @@ export class CashbackService {
     const cashbacks = await this.prisma.cashback.findMany({
       where: whereClause,
       include: {
-        receipt: {
-          select: {
-            id: true,
-            number: true,
-            date: true,
-            address: true,
-            price: true,
-          },
-        },
-        promotion: {
-          select: {
-            promotionId: true,
-            name: true,
-            domain: true,
-          },
-        },
-          select: {
-            id: true,
-            username: true,
-          },
-        },
+        receipt: true,
+        promotion: true,
         items: {
           include: {
             product: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-                brand: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
+              include: {
+                brand: true,
               },
             },
-            offer: {
-              select: {
-                id: true,
-                profit: true,
-                profitType: true,
-              },
-            },
+            offer: true,
           },
         },
       },
@@ -446,77 +328,10 @@ export class CashbackService {
     return statuses;
   }
 
-  
-  async getCashbackDetails(cashbackId: number, customerId?: number) {
-    const whereClause: any = { id: cashbackId };
-    if (customerId) {
-      whereClause.customerId = customerId;
-    }
-
-    const cashback = await this.prisma.cashback.findUnique({
-      where: whereClause,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            surname: true,
-            email: true,
-          },
-        },
-        receipt: {
-          include: {
-            products: {
-              include: {
-                product: {
-                  include: {
-                    brand: true,
-                  },
-                },
-                offer: true,
-              },
-            },
-          },
-        },
-        promotion: {
-          select: {
-            promotionId: true,
-            name: true,
-            domain: true,
-          },
-        },
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-        items: {
-          include: {
-            product: {
-              include: {
-                brand: true,
-              },
-            },
-            offer: true,
-          },
-        },
-      },
-    });
-
-    if (!cashback) {
-      throw new NotFoundException('Cashback not found');
-    }
-
-    return cashback;
-  }
-
-  
-  private async getActiveOffers(promotionId: string) {
+  private async getActiveOffers(promotionId: string): Promise<any[]> {
     const now = new Date();
     
-    this.logger.log(`Getting active offers for promotion ${promotionId} at ${now.toISOString()}`);
-    
-    const offers = await this.prisma.offer.findMany({
+    return await this.prisma.offer.findMany({
       where: {
         promotionId,
         date_from: { lte: now },
@@ -525,101 +340,14 @@ export class CashbackService {
       include: {
         products: {
           include: {
-            product: {
-              include: {
-                brand: true,
-              },
-            },
+            product: true,
           },
         },
         condition: true,
       },
-      orderBy: {
-        profit: 'desc', 
-      },
     });
-
-    this.logger.log(`Found ${offers.length} active offers for promotion ${promotionId}`);
-    
-    const validOffers = offers.filter(offer => {
-      const hasProducts = offer.products && offer.products.length > 0;
-      const hasValidProfit = offer.profit > 0;
-      
-      if (!hasProducts) {
-        this.logger.warn(`Offer ${offer.id} has no products assigned`);
-      }
-      if (!hasValidProfit) {
-        this.logger.warn(`Offer ${offer.id} has invalid profit: ${offer.profit}`);
-      }
-      
-      return hasProducts && hasValidProfit;
-    });
-
-    this.logger.log(`${validOffers.length} valid offers after filtering`);
-    
-    validOffers.forEach(offer => {
-      this.logger.debug(`Offer ${offer.id}: ${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'}, products: ${offer.products.length}, condition: ${offer.condition ? 'yes' : 'no'}`);
-    });
-    
-    return validOffers;
   }
 
-  
-  private parseReceiptItems(receiptData: any): ReceiptItem[] {
-    this.logger.log('Parsing receipt items from:', receiptData);
-    
-    const fnsItems = receiptData?.items || receiptData?.content?.items;
-    if (fnsItems) {
-      this.logger.log(`Parsing ${fnsItems.length} FNS items`);
-      const parsedItems = fnsItems.map((item: any) => {
-        const parsedItem = {
-          name: this.normalizeProductName(item.name || item.productName || item.text || ''),
-          sku: item.sku || item.productCode || item.code || null,
-          price: this.parsePrice(item.price || item.sum || item.amount || 0),
-          quantity: parseInt(item.quantity || item.qty || 1),
-          total: this.parsePrice(item.sum || item.total || item.amount || 0),
-        };
-        
-        this.logger.debug(`Parsed FNS item: original="${item.name}", normalized="${parsedItem.name}", price=${parsedItem.price}, total=${parsedItem.total}`);
-        return parsedItem;
-      });
-      
-      return parsedItems;
-    }
-
-    if (receiptData?.products) {
-      this.logger.log(`Parsing ${receiptData.products.length} DB products`);
-      return receiptData.products.map((receiptProduct: any) => {
-        const product = receiptProduct.product;
-        const totalPrice = receiptData.price || 1000;
-        const itemCount = receiptData.products.length;
-        const itemPrice = Math.round(totalPrice / itemCount);
-        
-        this.logger.log(`Product: ${product?.name}, itemPrice: ${itemPrice}`);
-        
-        return {
-          name: this.normalizeProductName(product?.name || 'Unknown Product'),
-          sku: product?.sku || null,
-          price: itemPrice,
-          quantity: 1,
-          total: itemPrice,
-        };
-      });
-    }
-
-    const items = receiptData?.content?.items || receiptData?.document?.receipt?.items || [];
-    this.logger.log(`Parsing ${items.length} fallback items`);
-    
-    return items.map((item: any) => ({
-      name: this.normalizeProductName(item.name || item.productName || item.text || ''),
-      sku: item.sku || item.productCode || item.code || null,
-      price: this.parsePrice(item.price || item.sum || item.amount || 0),
-      quantity: parseInt(item.quantity || item.qty || 1),
-      total: this.parsePrice(item.sum || item.total || item.amount || 0),
-    }));
-  }
-
-  
   private async matchItemsWithOffersAndCalculate(
     receiptItems: ReceiptItem[],
     activeOffers: any[],
@@ -644,7 +372,6 @@ export class CashbackService {
         }
       }
 
-
       if (bestMatch) {
         result.items.push(bestMatch);
         result.totalCashback += bestMatch.cashbackAmount;
@@ -663,13 +390,12 @@ export class CashbackService {
     return result;
   }
 
- 
   private async tryMatchItemWithOffer(
     receiptItem: ReceiptItem,
     offer: any
   ): Promise<CashbackItemCalculation | null> {
     this.logger.debug(`Trying to match item "${receiptItem.name}" with offer ${offer.id} (${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'})`);
-    
+
     const matchingProduct = offer.products.find((productOffer: any) =>
       this.isProductMatch(receiptItem, productOffer.product)
     );
@@ -682,12 +408,12 @@ export class CashbackService {
     this.logger.debug(`Item "${receiptItem.name}" matched with product "${matchingProduct.product.name}" (ID: ${matchingProduct.product.id})`);
 
     if (offer.condition && !this.checkOfferCondition(receiptItem, offer.condition)) {
-      this.logger.debug(`Item "${receiptItem.name}" - offer condition not met for offer ${offer.id}`);
+      this.logger.debug(`Item "${receiptItem.name}" - offer condition not met for offer ${offer.id}`);        
       return null;
     }
 
     const cashbackAmount = this.calculateOfferCashback(receiptItem, offer);
-    
+
     if (cashbackAmount <= 0) {
       this.logger.debug(`Item "${receiptItem.name}" - calculated cashback is 0 or negative`);
       return null;
@@ -710,9 +436,6 @@ export class CashbackService {
     };
   }
 
-
-
-  
   private isProductMatch(receiptItem: ReceiptItem, product: any): boolean {
     if (receiptItem.sku && product.sku && receiptItem.sku === product.sku) {
       return true;
@@ -726,20 +449,13 @@ export class CashbackService {
         return true;
       }
 
-      if (receiptName.includes(productName) || productName.includes(receiptName)) {
-        return true;
-      }
-
       const similarity = this.calculateNameSimilarity(receiptName, productName);
-      if (similarity >= 0.6) {
-        return true;
-      }
+      return similarity > 0.8;
     }
 
     return false;
   }
 
-  
   private checkOfferCondition(receiptItem: ReceiptItem, condition: any): boolean {
     if (!condition) return true;
 
@@ -757,98 +473,101 @@ export class CashbackService {
     }
   }
 
-  
   private calculateOfferCashback(receiptItem: ReceiptItem, offer: any): number {
     const { profit, profitType } = offer;
-    
+
     if (profitType === 'static') {
       return profit;
-    } else if (profitType === 'from') {
+    } else {
       return Math.round((receiptItem.total * profit) / 100);
     }
-    
-    return 0;
   }
 
-  
   private normalizeProductName(name: string): string {
     return name
       .toLowerCase()
-      .replace(/[^\u0400-\u04FFa-zA-Z0-9\s]/gi, '') 
-      .replace(/\s+/g, ' ') 
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
   }
-
 
   private calculateNameSimilarity(name1: string, name2: string): number {
     const words1 = name1.split(' ');
     const words2 = name2.split(' ');
     
-    const intersection = words1.filter(word => words2.includes(word));
-    const union = [...new Set([...words1, ...words2])];
+    let matches = 0;
+    for (const word1 of words1) {
+      for (const word2 of words2) {
+        if (word1 === word2 && word1.length > 2) {
+          matches++;
+          break;
+        }
+      }
+    }
     
-    return intersection.length / union.length;
+    return matches / Math.max(words1.length, words2.length);
   }
 
-  
   private async findProductBySku(sku?: string, promotionId?: string) {
     if (!sku) return null;
-    
+
     const whereCondition: any = { sku };
     if (promotionId) {
       whereCondition.promotionId = promotionId;
     }
-    
+
     return await this.prisma.product.findFirst({
       where: whereCondition,
       include: { brand: true },
     });
   }
 
-  
   private async findProductByName(name: string, promotionId?: string) {
     const normalizedName = this.normalizeProductName(name);
-    
+
     this.logger.debug(`Searching for product: original="${name}", normalized="${normalizedName}", promotionId=${promotionId}`);
-    
-    let whereCondition: any = {
+
+    const whereCondition: any = {
       name: {
-        equals: name,
+        contains: normalizedName,
         mode: 'insensitive',
       },
     };
-    
+
     if (promotionId) {
       whereCondition.promotionId = promotionId;
     }
-    
+
     let product = await this.prisma.product.findFirst({
       where: whereCondition,
       include: { brand: true },
     });
-    
+
     if (!product) {
       this.logger.debug('Exact match not found, trying partial match');
-      whereCondition.name = {
-        contains: normalizedName,
-        mode: 'insensitive',
-      };
       
-      product = await this.prisma.product.findFirst({
-        where: whereCondition,
-        include: { brand: true },
-      });
+      const words = normalizedName.split(' ');
+      if (words.length > 1) {
+        product = await this.prisma.product.findFirst({
+          where: {
+            ...whereCondition,
+            name: {
+              contains: words[0],
+              mode: 'insensitive',
+            },
+          },
+          include: { brand: true },
+        });
+      }
     }
-    
+
     this.logger.debug(`Product search result: ${product ? `found ID=${product.id}, name="${product.name}"` : 'not found'}`);
-    
     return product;
   }
 
-  
   private parsePrice(price: any): number {
     if (typeof price === 'number') {
-      return price;
+      return Math.round(price * 100);
     }
     
     if (typeof price === 'string') {
@@ -882,5 +601,52 @@ export class CashbackService {
         createdAt: 'desc',
       },
     });
+  }
+
+  async confirmCashback(cashbackId: number, adminId: number): Promise<{ success: boolean; confirmedAmount: number }> {
+    this.logger.log(`Confirming cashback ${cashbackId} by admin ${adminId}`);
+
+    const cashback = await this.prisma.cashback.findUnique({
+      where: { id: cashbackId },
+    });
+
+    if (!cashback) {
+      throw new NotFoundException('Кешбек не найден');
+    }
+
+    // В новой логике кешбеки уже начислены при создании, поэтому просто возвращаем успех
+    this.logger.log(`Cashback ${cashbackId} is already confirmed (bonuses already awarded)`);
+    return { success: true, confirmedAmount: cashback.amount };
+  }
+
+  async getCashbackDetails(cashbackId: number, customerId: number): Promise<any> {
+    this.logger.log(`Getting cashback details for ID ${cashbackId}, customer: ${customerId}`);
+
+    const cashback = await this.prisma.cashback.findFirst({
+      where: {
+        id: cashbackId,
+        customerId: customerId,
+      },
+      include: {
+        receipt: true,
+        promotion: true,
+        items: {
+          include: {
+            product: {
+              include: {
+                brand: true,
+              },
+            },
+            offer: true,
+          },
+        },
+      },
+    });
+
+    if (!cashback) {
+      throw new NotFoundException('Кешбек не найден');
+    }
+
+    return cashback;
   }
 }
