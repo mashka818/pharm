@@ -16,7 +16,6 @@ model Admin {
   updatedAt DateTime  @updatedAt
   role      AdminRole
 
-  cancelledCashbacks Cashback[]
   cashbackTickets    CashbackTicket[]
 
   @@map("admins")
@@ -303,15 +302,7 @@ model Cashback {
   promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
   
   amount        Int              
-  status        CashbackStatus   @default(pending)
-  reason        String?          
-  
-  cancelledBy   Int?
-  cancelledByAdmin Admin?        @relation(fields: [cancelledBy], references: [id])
-  cancelledAt   DateTime?
-  
   items         CashbackItem[]
-  tickets       CashbackTicket[]
   
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -415,13 +406,12 @@ model AdminNotification {
 
 model CashbackTicket {
   id            Int              @id @default(autoincrement())
-  cashbackId    Int
-  cashback      Cashback         @relation(fields: [cashbackId], references: [id], onDelete: Cascade)
   customerId    Int
   customer      Customer         @relation(fields: [customerId], references: [id])
   promotionId   String
   promotion     Promotion        @relation(fields: [promotionId], references: [promotionId])
   
+  amount        Int
   status        TicketStatus     @default(pending)
   adminId       Int?
   admin         Admin?           @relation(fields: [adminId], references: [id])
@@ -441,11 +431,6 @@ enum AdminNotificationType {
   system_error
 }
 
-enum CashbackStatus {
-  pending
-  active
-  cancelled
-}
 
 enum TicketStatus {
   pending

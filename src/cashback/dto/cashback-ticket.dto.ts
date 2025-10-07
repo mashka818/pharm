@@ -6,11 +6,11 @@ export { TicketStatus };
 
 export class CreateCashbackTicketDto {
   @ApiProperty({
-    description: 'ID кешбека для создания тикета',
-    example: 1,
+    description: 'Сумма бонусов для вывода',
+    example: 1000,
   })
   @IsInt()
-  cashbackId: number;
+  amount: number;
 }
 
 export class UpdateCashbackTicketDto {
@@ -40,10 +40,10 @@ export class CashbackTicketDto {
   id: number;
 
   @ApiProperty({
-    description: 'ID кешбека',
-    example: 1,
+    description: 'Сумма бонусов',
+    example: 1000,
   })
-  cashbackId: number;
+  amount: number;
 
   @ApiProperty({
     description: 'ID клиента',

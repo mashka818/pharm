@@ -7,38 +7,28 @@ export class CashbackTicketsService {
   constructor(private prisma: PrismaService) {}
 
   async createTicket(createTicketDto: CreateCashbackTicketDto, customerId: number): Promise<CashbackTicketDto> {
-    const cashback = await this.prisma.cashback.findFirst({
-      where: {
-        id: createTicketDto.cashbackId,
-        customerId: customerId,
-        status: 'pending',
-      },
-      include: {
-        customer: true,
-        promotion: true,
-      },
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { promotion: true },
     });
 
-    if (!cashback) {
-      throw new NotFoundException('Кешбек не найден или уже обработан');
+    if (!customer) {
+      throw new NotFoundException('Пользователь не найден');
     }
 
-    const existingTicket = await this.prisma.cashbackTicket.findFirst({
-      where: {
-        cashbackId: createTicketDto.cashbackId,
-        status: 'pending',
-      },
-    });
+    if (createTicketDto.amount > customer.bonuses) {
+      throw new BadRequestException('Недостаточно бонусов для вывода');
+    }
 
-    if (existingTicket) {
-      throw new BadRequestException('Тикет для этого кешбека уже существует');
+    if (createTicketDto.amount <= 0) {
+      throw new BadRequestException('Сумма должна быть больше 0');
     }
 
     return await this.prisma.cashbackTicket.create({
       data: {
-        cashbackId: createTicketDto.cashbackId,
         customerId: customerId,
-        promotionId: cashback.promotionId,
+        promotionId: customer.promotionId,
+        amount: createTicketDto.amount,
         status: 'pending',
       },
     });
@@ -58,12 +48,6 @@ export class CashbackTicketsService {
   async getAllTickets(): Promise<CashbackTicketDto[]> {
     return await this.prisma.cashbackTicket.findMany({
       include: {
-        cashback: {
-          include: {
-            customer: true,
-            items: true,
-          },
-        },
         customer: true,
         promotion: true,
         admin: true,
@@ -80,12 +64,6 @@ export class CashbackTicketsService {
         status: 'pending',
       },
       include: {
-        cashback: {
-          include: {
-            customer: true,
-            items: true,
-          },
-        },
         customer: true,
         promotion: true,
       },
@@ -103,7 +81,7 @@ export class CashbackTicketsService {
     const ticket = await this.prisma.cashbackTicket.findUnique({
       where: { id: ticketId },
       include: {
-        cashback: true,
+        customer: true,
       },
     });
 
@@ -127,20 +105,12 @@ export class CashbackTicketsService {
       });
 
       if (updateTicketDto.status === 'approved') {
-        await tx.cashback.update({
-          where: { id: ticket.cashbackId },
+        await tx.customer.update({
+          where: { id: ticket.customerId },
           data: {
-            status: 'active',
-          },
-        });
-      } else if (updateTicketDto.status === 'rejected') {
-        await tx.cashback.update({
-          where: { id: ticket.cashbackId },
-          data: {
-            status: 'cancelled',
-            reason: updateTicketDto.adminComment || 'Отклонено администратором',
-            cancelledBy: adminId,
-            cancelledAt: new Date(),
+            bonuses: {
+              decrement: ticket.amount,
+            },
           },
         });
       }
@@ -153,12 +123,6 @@ export class CashbackTicketsService {
     const ticket = await this.prisma.cashbackTicket.findUnique({
       where: { id: ticketId },
       include: {
-        cashback: {
-          include: {
-            customer: true,
-            items: true,
-          },
-        },
         customer: true,
         promotion: true,
         admin: true,

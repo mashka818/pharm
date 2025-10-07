@@ -319,8 +319,8 @@ export class CashbackController {
 
   @Post('tickets')
   @ApiOperation({ 
-    summary: 'Создать тикет для кешбека',
-    description: 'Создает тикет для кешбека со статусом pending, чтобы администратор мог его рассмотреть.'
+    summary: 'Создать заявку на вывод бонусов',
+    description: 'Создает заявку на вывод указанного количества бонусов со статусом pending, чтобы администратор мог её рассмотреть.'
   })
   @ApiResponse({ 
     status: 201, 
@@ -344,9 +344,30 @@ export class CashbackController {
     @Request() req: any
   ): Promise<CashbackTicketDto> {
     const customerId = req.user?.id;
-    this.logger.log(`Creating ticket for cashback ${createTicketDto.cashbackId} by customer ${customerId}`);
+    this.logger.log(`Creating withdrawal ticket for amount ${createTicketDto.amount} by customer ${customerId}`);
     
     return this.cashbackTicketsService.createTicket(createTicketDto, customerId);
+  }
+
+  @Get('history/my')
+  @ApiOperation({ 
+    summary: 'Получить мою историю кешбеков',
+    description: 'Получает все кешбеки текущего клиента (история начислений).'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'История кешбеков успешно получена',
+    type: [CashbackHistoryItemDto]
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Неавторизованный доступ' 
+  })
+  async getMyCashbackHistory(@Request() req: any): Promise<any[]> {
+    const customerId = req.user?.id;
+    this.logger.log(`Getting cashback history for customer ${customerId}`);
+    
+    return this.cashbackService.getCustomerCashbackHistory(customerId);
   }
 
   @Get('tickets/my')

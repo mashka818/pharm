@@ -77,7 +77,6 @@ export class CashbackService {
           fnsRequestId,
           promotionId,
           amount: calculationResult.totalCashback,
-          status: CashbackStatus.active,
           items: {
             create: calculationResult.items.map(item => ({
               productId: item.productId,
@@ -305,94 +304,6 @@ export class CashbackService {
     return cashbacks;
   }
 
-  async getCustomerCashbackHistory(customerId: number, promotionId?: string) {
-    this.logger.log(`Getting cashback history for customer ${customerId}, promotion: ${promotionId}`);
-    
-    const whereClause: any = {
-      customerId,
-    };
-
-    if (promotionId) {
-      whereClause.promotionId = promotionId;
-    }
-
-    const cashbacks = await this.prisma.cashback.findMany({
-      where: whereClause,
-      include: {
-        receipt: {
-          select: {
-            id: true,
-            number: true,
-            date: true,
-            address: true,
-            price: true,
-          },
-        },
-        fnsRequest: {
-          select: {
-            id: true,
-            status: true,
-            createdAt: true,
-          },
-        },
-        promotion: {
-          select: {
-            promotionId: true,
-            name: true,
-            domain: true,
-          },
-        },
-        cancelledByAdmin: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-                brand: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-            offer: {
-              select: {
-                id: true,
-                profit: true,
-                profitType: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    this.logger.log(`Retrieved ${cashbacks.length} cashback records for customer ${customerId}`);
-    
-    const statistics = {
-      total: cashbacks.length,
-      active: cashbacks.filter(c => c.status === 'active').length,
-      cancelled: cashbacks.filter(c => c.status === 'cancelled').length,
-      totalAmount: cashbacks.filter(c => c.status === 'active').reduce((sum, c) => sum + c.amount, 0),
-      cancelledAmount: cashbacks.filter(c => c.status === 'cancelled').reduce((sum, c) => sum + c.amount, 0),
-    };
-
-    return {
-      cashbacks,
-      statistics,
-    };
-  }
 
   async getCustomerReceipts(customerId: number, promotionId?: string) {
     this.logger.log(`Getting receipts for customer ${customerId}, promotion: ${promotionId}`);
@@ -955,5 +866,30 @@ export class CashbackService {
     }
     
     return 0;
+  }
+
+  async getCustomerCashbackHistory(customerId: number): Promise<any[]> {
+    return await this.prisma.cashback.findMany({
+      where: {
+        customerId: customerId,
+      },
+      include: {
+        receipt: true,
+        promotion: true,
+        items: {
+          include: {
+            product: {
+              include: {
+                brand: true,
+              },
+            },
+            offer: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 }
