@@ -27,8 +27,20 @@ export class FnsService {
     this.logger.log(`Processing QR scan for customer ${customerId}, promotion ${promotionId}, host: ${host}`);
     
     try { 
+      const hostPromotionId = this.extractPromotionIdFromHost(host);
+      this.logger.log(`Extracted promotionId from host: ${hostPromotionId}`);
+      
+      const finalPromotionId = hostPromotionId || promotionId;
+      this.logger.log(`Final promotionId: ${finalPromotionId}`);
+      
+      // Если promotionId извлечен из поддомена, проверяем что он совпадает с токеном пользователя
+      if (hostPromotionId && hostPromotionId !== promotionId) {
+        this.logger.error(`PromotionId mismatch: host has ${hostPromotionId}, token has ${promotionId}`);
+        throw new BadRequestException('Promotion ID from subdomain does not match user token');
+      }
+      
       const promotion = await this.prisma.promotion.findUnique({
-        where: { promotionId },
+        where: { promotionId: finalPromotionId },
       });
 
       if (!promotion) {
@@ -36,19 +48,23 @@ export class FnsService {
       }
 
       const expectedDomain = promotion.domain;
-      this.logger.log(`Expected domain: ${expectedDomain}, Actual host: ${host}`);
+      this.logger.log(`Domain validation - Expected: ${expectedDomain}, Actual: ${host}, Final PromotionId: ${finalPromotionId}`);
       
-      if (host !== expectedDomain && !host.includes(expectedDomain)) {
-      this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
-      throw new BadRequestException('Invalid domain for this promotion');
+      const isDomainValid = this.isValidDomain(host, expectedDomain, finalPromotionId);
+      
+      this.logger.log(`Domain validation result: ${isDomainValid}`);
+      
+      if (!isDomainValid) {
+        this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
+        throw new BadRequestException('Invalid domain for this promotion');
       }
 
-      const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
+      const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, finalPromotionId);
       
       const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimitsForPromotion(
         customerId, 
         qrData, 
-        promotionId
+        finalPromotionId
       );
       
       if (!canReceiveCashback) {
@@ -61,7 +77,7 @@ export class FnsService {
         };
       }
 
-      const dailyLimit = await this.checkDailyLimit(promotionId);
+      const dailyLimit = await this.checkDailyLimit(finalPromotionId);
       if (!dailyLimit.allowed) {
         return {
           requestId: null,
@@ -73,7 +89,7 @@ export class FnsService {
       const requestId = await this.fnsQueueService.addToQueueWithPromotion(
         qrData, 
         customerId, 
-        promotionId
+        finalPromotionId
       );
       
       return {
@@ -466,6 +482,69 @@ export class FnsService {
         qrData: true,
       },
     });
+  }
+
+  private extractPromotionIdFromHost(host: string): string | null {
+    const parts = host.split('.');
+    
+    if (parts.length >= 3) {
+      const potentialPromotionId = parts[0];
+      
+      const standardSubdomains = ['www', 'api', 'admin', 'app', 'mobile', 'm'];
+      if (!standardSubdomains.includes(potentialPromotionId)) {
+        return potentialPromotionId;
+      }
+    }
+    
+    return null;
+  }
+
+  private isValidDomain(actualHost: string, expectedDomain: string, promotionId?: string): boolean {
+    if (actualHost === expectedDomain) {
+      return true;
+    }
+    
+    if (actualHost.includes(expectedDomain)) {
+      return true;
+    }
+    
+    const expectedParts = expectedDomain.split('.');
+    const actualParts = actualHost.split('.');
+    
+    if (expectedParts.length === 2) {
+      const [expectedName, expectedTld] = expectedParts;
+      const lastTwoParts = actualParts.slice(-2);
+      
+      if (lastTwoParts.length === 2 && 
+          lastTwoParts[0] === expectedName && 
+          lastTwoParts[1] === expectedTld) {
+        return true;
+      }
+    }
+    
+    if (promotionId && actualParts.length >= 3) {
+      const lastTwoParts = actualParts.slice(-2);
+      const expectedParts = expectedDomain.split('.');
+      
+      if (expectedParts.length === 2) {
+        const [expectedName, expectedTld] = expectedParts;
+        
+        if (actualParts[actualParts.length - 3] === promotionId &&
+            lastTwoParts[0] === expectedName && 
+            lastTwoParts[1] === expectedTld) {
+          return true;
+        }
+      }
+    }
+    
+    if (expectedDomain === 'чек-поинт.рф' || expectedDomain === 'xn----itbkgreg1a1b.xn--p1ai') {
+      return actualHost.includes('xn----itbkgreg1a1b.xn--p1ai') || 
+             actualHost.includes('чек-поинт.рф') ||
+             actualHost.includes('91.236.198.205') ||
+             actualHost.includes('api.xn----itbkgreg1a1b.xn--p1ai');
+    }
+    
+    return false;
   }
 
   private async checkDailyLimit(promotionId: string): Promise<{ allowed: boolean; current: number; limit: number }> {

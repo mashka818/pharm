@@ -26,14 +26,14 @@ export class FnsController {
 
   constructor(private readonly fnsService: FnsService) {}
 
-  @Post('scan-qr')
+  @Post('scan-qr/:promotionId?')
   @ApiOperation({ 
     summary: 'Сканировать QR код чека для конкретной сети аптек',
-    description: 'Принимает QR код чека и токен авторизации. Из токена извлекается ID пользователя и ID сети (promotionId) для начисления кешбека в рамках конкретной промоакции.'
+    description: 'Принимает QR код чека и токен авторизации. promotionId может быть передан в URL пути или извлечен из JWT токена.'
   })
   @ApiHeader({
     name: 'host',
-    description: 'Host header (автоматически заполняется браузером). promotionId извлекается из JWT токена.',
+    description: 'Host header (автоматически заполняется браузером)',
     required: false,
   })
   @ApiResponse({ 
@@ -61,8 +61,9 @@ export class FnsController {
     @Body() qrData: ScanQrCodeDto,
     @Request() req: any,
     @Headers('host') host: string,
+    @Param('promotionId') urlPromotionId?: string,
   ) {
-    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}`);
+    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}, urlPromotionId: ${urlPromotionId}`);
     
     if (!host) {
       throw new BadRequestException('Host header is required');
@@ -72,14 +73,17 @@ export class FnsController {
       throw new BadRequestException('User not authenticated');
     }
 
-    if (!req.user?.promotionId) {
-      throw new BadRequestException('Promotion ID not found in token');
+    // Определяем promotionId: приоритет у URL параметра, затем JWT токена
+    const promotionId = urlPromotionId || req.user?.promotionId;
+    
+    if (!promotionId) {
+      throw new BadRequestException('Promotion ID not found in URL or token');
     }
 
     return this.fnsService.processScanQrCode(
       qrData, 
       req.user.id, 
-      req.user.promotionId, 
+      promotionId, 
       host
     );
   }
