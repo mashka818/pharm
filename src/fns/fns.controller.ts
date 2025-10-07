@@ -73,7 +73,6 @@ export class FnsController {
       throw new BadRequestException('User not authenticated');
     }
 
-    // Определяем promotionId: приоритет у URL параметра, затем JWT токена
     const promotionId = urlPromotionId || req.user?.promotionId;
     
     if (!promotionId) {
