@@ -43,13 +43,20 @@ export class CashbackService {
     this.logger.log(`Calculating cashback for customer ${customerId}, promotion ${promotionId}`);
 
     try {
-      const receiptItems: ReceiptItem[] = receiptData.items?.map((item: any) => ({
+      this.logger.debug(`Receipt data structure: items=${JSON.stringify(receiptData.items)}, content.items=${JSON.stringify(receiptData.content?.items)}`);
+      
+      const items = receiptData.content?.items || receiptData.items || [];
+      this.logger.debug(`Using items from: ${receiptData.content?.items ? 'receiptData.content.items' : 'receiptData.items'}, count: ${items.length}`);
+      
+      const receiptItems: ReceiptItem[] = items.map((item: any) => ({
         name: item.name || '',
         sku: item.sku,
         quantity: item.quantity || 1,
         price: this.parsePrice(item.price),
         total: this.parsePrice(item.sum),
-      })) || [];
+      }));
+      
+      this.logger.debug(`Parsed receipt items: ${JSON.stringify(receiptItems)}`);
 
       const activeOffers = await this.getActiveOffers(promotionId);
       
@@ -331,7 +338,7 @@ export class CashbackService {
   private async getActiveOffers(promotionId: string): Promise<any[]> {
     const now = new Date();
     
-    return await this.prisma.offer.findMany({
+    const offers = await this.prisma.offer.findMany({
       where: {
         promotionId,
         date_from: { lte: now },
@@ -342,6 +349,13 @@ export class CashbackService {
         condition: true,
       },
     });
+    
+    this.logger.debug(`Found ${offers.length} active offers for promotion ${promotionId}`);
+    offers.forEach(offer => {
+      this.logger.debug(`Offer ${offer.id}: ${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'}, products: ${offer.products?.length || 0}`);
+    });
+    
+    return offers;
   }
 
   private async matchItemsWithOffersAndCalculate(
@@ -395,7 +409,6 @@ export class CashbackService {
     this.logger.debug(`Offer ${offer.id} has ${offer.products?.length || 0} products: ${JSON.stringify(offer.products?.map((p: any) => ({ id: p.id || p.product?.id, name: p.name || p.product?.name })) || [])}`);
     
     const matchingProduct = offer.products.find((productOffer: any) => {
-      // Поддерживаем как старую структуру (productOffer.product), так и новую (productOffer напрямую)
       const product = productOffer.product || productOffer;
       const isMatch = this.isProductMatch(receiptItem, product);
       this.logger.debug(`Comparing "${receiptItem.name}" with "${product.name}" (ID: ${product.id}): ${isMatch}`);
