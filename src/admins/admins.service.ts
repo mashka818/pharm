@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { LoginAdminDto } from './dto/login-admin.dto';
 import { AdminDto } from './dto/admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
+import { AwardBonusesDto } from './dto/award-bonuses.dto';
 
 @Injectable()
 export class AdminsService implements OnApplicationBootstrap {
@@ -120,5 +121,45 @@ export class AdminsService implements OnApplicationBootstrap {
     } else {
       console.log('Root Admin exist');
     }
+  }
+
+  async awardBonusesToCustomer(awardBonusesDto: AwardBonusesDto, adminId: number) {
+    const { customerId, amount, reason } = awardBonusesDto;
+
+    // Проверяем существование клиента
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      include: { promotion: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Клиент не найден');
+    }
+
+    // Начисляем бонусы
+    const updatedCustomer = await this.prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        bonuses: {
+          increment: amount,
+        },
+      },
+    });
+
+    // Создаем запись о начислении бонусов (можно добавить в отдельную таблицу для истории)
+    console.log(`Admin ${adminId} awarded ${amount} bonuses to customer ${customerId}. Reason: ${reason || 'Manual award'}`);
+
+    return {
+      success: true,
+      message: 'Бонусы успешно начислены',
+      customer: {
+        id: updatedCustomer.id,
+        email: updatedCustomer.email,
+        bonuses: updatedCustomer.bonuses,
+        promotion: customer.promotion.name,
+      },
+      awardedAmount: amount,
+      reason: reason || 'Manual award',
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Request } from '@nestjs/common';
 import { Public } from 'src/decorators/public.decorator';
 import { ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ConfirmationResponseDto } from 'src/auth/dto/confirmation-response.dto';
@@ -11,6 +11,7 @@ import { ApiBody, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { CustomersService } from 'src/customers/customers.service';
 import { ApiOkResponse } from '@nestjs/swagger';
+import { AwardBonusesDto } from './dto/award-bonuses.dto';
 
 @ApiBearerAuth()
 @UseGuards(AdminGuard)
@@ -114,5 +115,44 @@ export class AdminsController {
   @Delete(':id')
   removeAdmin(@Param('id') id: number) {
     return this.adminsService.remove(+id);
+  }
+
+  @Post('award-bonuses')
+  @ApiOperation({ 
+    summary: 'Начислить бонусы клиенту',
+    description: 'Позволяет администратору вручную начислить бонусы клиенту по его ID'
+  })
+  @ApiBody({ type: AwardBonusesDto })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Бонусы успешно начислены',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        customer: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            email: { type: 'string' },
+            bonuses: { type: 'number' },
+            promotion: { type: 'string' }
+          }
+        },
+        awardedAmount: { type: 'number' },
+        reason: { type: 'string' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Неверные данные запроса' })
+  @ApiResponse({ status: 404, description: 'Клиент не найден' })
+  @ApiResponse({ status: 401, description: 'Неавторизован' })
+  @ApiResponse({ status: 403, description: 'Доступ запрещён' })
+  awardBonusesToCustomer(
+    @Body() awardBonusesDto: AwardBonusesDto,
+    @Request() req: any
+  ) {
+    return this.adminsService.awardBonusesToCustomer(awardBonusesDto, req.user.id);
   }
 }
