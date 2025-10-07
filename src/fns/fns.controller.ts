@@ -52,10 +52,10 @@ export class FnsController {
     return null;
   }
 
-  @Post('scan-qr/:promotionId?')
+  @Post('scan-qr/:domain?')
   @ApiOperation({ 
     summary: 'Сканировать QR код чека для конкретной сети аптек',
-    description: 'Принимает QR код чека и токен авторизации. promotionId может быть передан в URL пути или извлечен из JWT токена.'
+    description: 'Принимает QR код чека и токен авторизации. domain может быть передан в URL пути или извлечен из referer.'
   })
   @ApiHeader({
     name: 'host',
@@ -88,9 +88,9 @@ export class FnsController {
     @Request() req: any,
     @Headers('host') host: string,
     @Headers('referer') referer?: string,
-    @Param('promotionId') urlPromotionId?: string,
+    @Param('domain') urlDomain?: string,
   ) {
-    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}, urlPromotionId: ${urlPromotionId}, referer: ${referer}`);
+    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}, urlDomain: ${urlDomain}, referer: ${referer}`);
     
     if (!host) {
       throw new BadRequestException('Host header is required');
@@ -106,13 +106,22 @@ export class FnsController {
     const refererDomain = this.extractDomainFromReferer(referer);
     this.logger.log(`Extracted domain from referer: ${refererDomain}`);
 
-    let promotionId = hostPromotionId || urlPromotionId;
+    let promotionId = hostPromotionId;
+    
+    // Приоритет: URL domain -> referer domain -> user token
+    if (urlDomain && !promotionId) {
+      const promotion = await this.fnsService.findPromotionByDomain(urlDomain);
+      if (promotion) {
+        promotionId = promotion.promotionId;
+        this.logger.log(`Found promotion by URL domain: ${promotionId}`);
+      }
+    }
     
     if (refererDomain && !promotionId) {
       const promotion = await this.fnsService.findPromotionByDomain(refererDomain);
       if (promotion) {
         promotionId = promotion.promotionId;
-        this.logger.log(`Found promotion by domain: ${promotionId}`);
+        this.logger.log(`Found promotion by referer domain: ${promotionId}`);
       }
     }
     
@@ -122,7 +131,7 @@ export class FnsController {
     }
     
     if (!promotionId) {
-      throw new BadRequestException('Promotion ID not found in host, URL, referer domain or user token');
+      throw new BadRequestException('Promotion ID not found in host, URL domain, referer domain or user token');
     }
 
     if (req.user?.promotionId && req.user.promotionId !== promotionId) {
