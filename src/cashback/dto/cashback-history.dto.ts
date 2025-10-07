@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CashbackStatus } from '@prisma/client';
 
 export class CashbackHistoryItemDto {
   @ApiProperty({ description: 'ID кэшбека' })

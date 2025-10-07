@@ -67,7 +67,7 @@ export class CashbackController {
       const history = await this.cashbackService.getTodaysCashbackHistory(promotionId);
       
       this.logger.log(`Retrieved ${history.length} cashback records`);
-      return history as CashbackHistoryItemDto[];
+      return history;
     } catch (error) {
       this.logger.error('Error getting cashback history:', error);
       throw error;
@@ -278,9 +278,9 @@ export class CashbackController {
       const stats = {
         totalCashback: history.reduce((sum, item) => sum + item.amount, 0),
         totalTransactions: history.length,
-        activeCashback: history.filter(item => item.status === 'active').reduce((sum, item) => sum + item.amount, 0),
-        cancelledCashback: history.filter(item => item.status === 'cancelled').reduce((sum, item) => sum + item.amount, 0),
-        uniqueCustomers: new Set(history.map(item => item.customer.id)).size,
+        activeCashback: history.reduce((sum, item) => sum + item.amount, 0),
+        cancelledCashback: 0,
+        uniqueCustomers: new Set(history.map(item => item.customerId)).size,
         topOffers: this.calculateTopOffers(history)
       };
 

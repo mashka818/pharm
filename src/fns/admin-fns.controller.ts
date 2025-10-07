@@ -148,21 +148,17 @@ export class AdminFnsController {
       throw new BadRequestException('FNS request not found');
     }
 
-    // Если есть начисленные кешбеки, нужно их отменить
     if (request.cashbacks && request.cashbacks.length > 0) {
       for (const cashback of request.cashbacks) {
-        // Отменяем кешбек
         await this.prisma.cashback.update({
           where: { id: cashback.id },
           data: {
-            status: 'cancelled',
             reason: `Сброшен админом: ${body.reason}`,
             cancelledBy: req.user?.id,
             cancelledAt: new Date(),
           },
         });
 
-        // Списываем бонусы у клиента
         if (cashback.customerId) {
           await this.prisma.customer.update({
             where: { id: cashback.customerId },
@@ -176,7 +172,6 @@ export class AdminFnsController {
       }
     }
 
-    // Сбрасываем статус запроса
     const updatedRequest = await this.prisma.fnsRequest.update({
       where: { id },
       data: {
@@ -234,12 +229,9 @@ export class AdminFnsController {
       throw new BadRequestException('FNS request not found');
     }
 
-    // Удаляем связанные данные в транзакции
     await this.prisma.$transaction(async (tx) => {
-      // Удаляем кешбеки
       if (request.cashbacks && request.cashbacks.length > 0) {
         for (const cashback of request.cashbacks) {
-          // Списываем бонусы у клиента
           if (cashback.customerId) {
             await tx.customer.update({
               where: { id: cashback.customerId },
@@ -251,19 +243,16 @@ export class AdminFnsController {
             });
           }
 
-          // Удаляем элементы кешбека
           await tx.cashbackItem.deleteMany({
             where: { cashbackId: cashback.id },
           });
           
-          // Удаляем кешбек
           await tx.cashback.delete({
             where: { id: cashback.id },
           });
         }
       }
 
-      // Удаляем чек, если есть
       if (request.receipt) {
         await tx.receiptProduct.deleteMany({
           where: { receiptId: request.receipt.id },
@@ -274,7 +263,6 @@ export class AdminFnsController {
         });
       }
 
-      // Удаляем сам запрос
       await tx.fnsRequest.delete({
         where: { id },
       });

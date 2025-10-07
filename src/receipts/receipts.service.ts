@@ -13,14 +13,10 @@ export class ReceiptsService {
     private readonly cashbackService: CashbackService,
   ) {}
 
-  /**
-   * Создание чека с автоматическим расчетом и начислением кешбека
-   */
   async createReceiptWithCashback(createReceiptDto: CreateReceiptDto) {
     this.logger.log(`Creating receipt with number: ${createReceiptDto.number}`);
 
     try {
-      // Валидация существования промоакции
       const promotion = await this.prisma.promotion.findUnique({
         where: { promotionId: createReceiptDto.promotionId },
       });
@@ -29,7 +25,6 @@ export class ReceiptsService {
         throw new BadRequestException(`Promotion ${createReceiptDto.promotionId} not found`);
       }
 
-      // Валидация клиента, если указан
       if (createReceiptDto.customerId) {
         const customer = await this.prisma.customer.findUnique({
           where: { id: createReceiptDto.customerId },
@@ -40,7 +35,6 @@ export class ReceiptsService {
           throw new BadRequestException(`Customer ${createReceiptDto.customerId} not found`);
         }
 
-        // Проверяем, что клиент принадлежит к той же подсети
         if (customer.promotionId !== createReceiptDto.promotionId) {
           throw new BadRequestException(
             `Customer belongs to promotion ${customer.promotionId}, but receipt is for promotion ${createReceiptDto.promotionId}`
@@ -48,18 +42,16 @@ export class ReceiptsService {
         }
       }
 
-      // Валидация товаров - проверяем, что все товары принадлежат к указанной подсети
       if (createReceiptDto.products && createReceiptDto.products.length > 0) {
         await this.validateProductsForPromotion(createReceiptDto.products, createReceiptDto.promotionId);
       }
 
-      // Создаем чек
       const receipt = await this.prisma.receipt.create({
         data: {
           date: new Date(createReceiptDto.date),
           number: createReceiptDto.number,
           price: createReceiptDto.price,
-          cashback: 0, // Будет обновлено после расчета
+          cashback: 0, 
           status: createReceiptDto.status,
           address: createReceiptDto.address,
           customerId: createReceiptDto.customerId,
@@ -67,7 +59,6 @@ export class ReceiptsService {
         },
       });
 
-      // Создаем продукты чека
       if (createReceiptDto.products && createReceiptDto.products.length > 0) {
         const receiptProducts = await Promise.all(
           createReceiptDto.products.map(product =>
@@ -88,12 +79,10 @@ export class ReceiptsService {
       let totalCashback = 0;
       let calculationResult = null;
 
-      // Автоматически рассчитываем и начисляем кешбек, если есть клиент и товары
       if (createReceiptDto.customerId && createReceiptDto.products && createReceiptDto.products.length > 0) {
         try {
           this.logger.log(`Calculating cashback for receipt ${receipt.id} and customer ${createReceiptDto.customerId}`);
           
-          // Получаем полные данные о чеке для расчета кешбека
           const receiptForCashback = await this.prisma.receipt.findUnique({
             where: { id: receipt.id },
             include: {
@@ -106,7 +95,6 @@ export class ReceiptsService {
             },
           });
 
-          // Рассчитываем кешбек
           calculationResult = await this.cashbackService.calculateCashback(
             receiptForCashback,
             createReceiptDto.customerId,
@@ -115,11 +103,10 @@ export class ReceiptsService {
 
           totalCashback = calculationResult.totalCashback;
 
-          // Начисляем кешбек, если он больше 0
           if (totalCashback > 0) {
             const cashbackResult = await this.cashbackService.awardCashback(
               createReceiptDto.customerId,
-              null, // Для обычных чеков нет fnsRequestId
+              null, 
               receipt.id,
               createReceiptDto.promotionId,
               calculationResult
@@ -131,17 +118,14 @@ export class ReceiptsService {
           }
         } catch (cashbackError) {
           this.logger.error(`Error calculating/awarding cashback for receipt ${receipt.id}:`, cashbackError);
-          // Не прерываем создание чека из-за ошибки кешбека
         }
       }
 
-      // Обновляем сумму кешбека в чеке
       await this.prisma.receipt.update({
         where: { id: receipt.id },
         data: { cashback: totalCashback },
       });
 
-      // Возвращаем созданный чек с продуктами
       const createdReceipt = await this.prisma.receipt.findUnique({
         where: { id: receipt.id },
         include: {
@@ -279,7 +263,6 @@ export class ReceiptsService {
     this.logger.log(`Updating receipt with ID: ${updateReceiptDto.id}`);
     
     try {
-      // Проверяем, существует ли чек
       const existingReceipt = await this.prisma.receipt.findUnique({
         where: { id: updateReceiptDto.id },
       });
@@ -288,7 +271,6 @@ export class ReceiptsService {
         throw new NotFoundException(`Receipt with ID ${updateReceiptDto.id} not found`);
       }
 
-      // Обновляем чек
       const updatedReceipt = await this.prisma.receipt.update({
         where: { id: updateReceiptDto.id },
         data: {
@@ -337,7 +319,6 @@ export class ReceiptsService {
     this.logger.log(`Removing receipt with ID: ${id}`);
     
     try {
-      // Проверяем, существует ли чек
       const existingReceipt = await this.prisma.receipt.findUnique({
         where: { id },
       });
@@ -346,7 +327,6 @@ export class ReceiptsService {
         throw new NotFoundException(`Receipt with ID ${id} not found`);
       }
 
-      // Удаляем чек (продукты чека удалятся автоматически благодаря CASCADE)
       await this.prisma.receipt.delete({
         where: { id },
       });
@@ -363,10 +343,8 @@ export class ReceiptsService {
     this.logger.log('Creating test receipt for cashback testing');
     
     try {
-      // Используем тестового пользователя с ID 1
       const testCustomerId = 1;
       
-      // Проверяем существование пользователя ID 1
       const testCustomer = await this.prisma.customer.findUnique({
         where: { id: testCustomerId },
         select: { id: true, promotionId: true, name: true },
@@ -376,7 +354,6 @@ export class ReceiptsService {
         throw new Error('Test customer with ID 1 not found. Please create a customer with ID 1 first.');
       }
 
-      // Используем промоакцию клиента
       const promotion = await this.prisma.promotion.findUnique({
         where: { promotionId: testCustomer.promotionId },
       });
@@ -385,7 +362,6 @@ export class ReceiptsService {
         throw new Error(`Promotion ${testCustomer.promotionId} not found for test customer`);
       }
 
-      // Получаем продукты из той же подсети что и клиент
       const products = await this.prisma.product.findMany({
         where: {
           promotionId: testCustomer.promotionId,
@@ -400,7 +376,6 @@ export class ReceiptsService {
         throw new Error('No products found in the system');
       }
 
-      // Получаем активные акции для подсети клиента
       const now = new Date();
       const offers = await this.prisma.offer.findMany({
         where: {
@@ -411,7 +386,6 @@ export class ReceiptsService {
         take: 2,
       });
 
-      // Создаем тестовый чек
       const testReceiptData = {
         date: new Date().toISOString(),
         number: Math.floor(Math.random() * 100000) + 10000,
@@ -424,7 +398,6 @@ export class ReceiptsService {
         products: [] as any[],
       };
 
-      // Рассчитываем цены и кэшбек для каждого продукта
       let totalPrice = 0;
       let totalCashback = 0;
 
@@ -433,13 +406,11 @@ export class ReceiptsService {
         const itemPrice = Math.floor(Math.random() * 1000) + 100; // 100-1100 копеек
         const totalItemPrice = itemPrice * quantity;
         
-        // Простой расчет кэшбека (5% от цены)
         const itemCashback = Math.floor(totalItemPrice * 0.05);
         
         totalPrice += totalItemPrice;
         totalCashback += itemCashback;
 
-        // Выбираем случайную акцию для продукта
         const randomOffer = offers.length > 0 ? offers[Math.floor(Math.random() * offers.length)] : null;
 
         testReceiptData.products.push({
@@ -452,7 +423,6 @@ export class ReceiptsService {
       testReceiptData.price = totalPrice;
       testReceiptData.cashback = totalCashback;
 
-      // Создаем чек с привязкой к тестовому клиенту
       const receipt = await this.prisma.receipt.create({
         data: {
           date: new Date(testReceiptData.date),
@@ -466,7 +436,6 @@ export class ReceiptsService {
         },
       });
 
-      // Создаем продукты чека
       if (testReceiptData.products.length > 0) {
         await Promise.all(
           testReceiptData.products.map(product =>
@@ -482,7 +451,6 @@ export class ReceiptsService {
         );
       }
 
-      // Создаем кешбек для тестового чека
       if (totalCashback > 0) {
         const testCashback = await this.prisma.cashback.create({
           data: {
@@ -490,7 +458,6 @@ export class ReceiptsService {
             receiptId: receipt.id,
             promotionId: testCustomer.promotionId,
             amount: totalCashback,
-            status: 'active',
             items: {
               create: testReceiptData.products.map(product => ({
                 productId: product.productId,
@@ -508,7 +475,6 @@ export class ReceiptsService {
           },
         });
 
-        // Начисляем бонусы клиенту
         await this.prisma.customer.update({
           where: { id: testCustomerId },
           data: {
@@ -521,7 +487,6 @@ export class ReceiptsService {
         this.logger.log(`Created cashback ${testCashback.id} with amount ${totalCashback} for test receipt ${receipt.id}`);
       }
 
-      // Возвращаем созданный чек с деталями
       const createdReceipt = await this.prisma.receipt.findUnique({
         where: { id: receipt.id },
         include: {
@@ -565,16 +530,12 @@ export class ReceiptsService {
     }
   }
 
-  /**
-   * Валидация товаров для промоакции - проверяет, что все товары принадлежат к указанной подсети
-   */
   private async validateProductsForPromotion(products: any[], promotionId: string) {
     this.logger.log(`Validating ${products.length} products for promotion ${promotionId}`);
 
     const productIds = products.map(p => p.productId).filter(Boolean);
     const offerIds = products.map(p => p.offerId).filter(Boolean);
 
-    // Проверяем товары
     if (productIds.length > 0) {
       const invalidProducts = await this.prisma.product.findMany({
         where: {
@@ -592,7 +553,6 @@ export class ReceiptsService {
       }
     }
 
-    // Проверяем акции
     if (offerIds.length > 0) {
       const invalidOffers = await this.prisma.offer.findMany({
         where: {
@@ -612,6 +572,4 @@ export class ReceiptsService {
 
     this.logger.log(`All products and offers validated successfully for promotion ${promotionId}`);
   }
-
-
 }

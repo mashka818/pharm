@@ -1,6 +1,5 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CashbackStatus } from '@prisma/client';
 
 export interface CashbackCalculationResult {
   totalCashback: number;
@@ -135,7 +134,7 @@ export class CashbackService {
         throw new NotFoundException('Cashback not found');
       }
 
-      if (cashback.status === CashbackStatus.cancelled) {
+      if (false) {
         throw new BadRequestException('Cashback already cancelled');
       }
 
@@ -146,7 +145,6 @@ export class CashbackService {
       await tx.cashback.update({
         where: { id: cashbackId },
         data: {
-          status: CashbackStatus.cancelled,
           reason,
           cancelledBy: adminId,
           cancelledAt: new Date(),
@@ -192,7 +190,7 @@ export class CashbackService {
         throw new NotFoundException('Cashback not found');
       }
 
-      if (cashback.status === CashbackStatus.cancelled) {
+      if (false) {
         throw new BadRequestException('Cannot confirm cancelled cashback');
       }
 
@@ -203,7 +201,6 @@ export class CashbackService {
       await tx.cashback.update({
         where: { id: cashbackId },
         data: {
-          status: CashbackStatus.cancelled,
           reason: 'Подтвержден администратором',
           cancelledBy: adminId,
           cancelledAt: new Date(),
@@ -262,7 +259,6 @@ export class CashbackService {
             name: true,
           },
         },
-        cancelledByAdmin: {
           select: {
             id: true,
             username: true,
@@ -354,7 +350,6 @@ export class CashbackService {
           select: {
             id: true,
             amount: true,
-            status: true,
             createdAt: true,
             reason: true,
             cancelledAt: true,
@@ -401,7 +396,6 @@ export class CashbackService {
             domain: true,
           },
         },
-        cancelledByAdmin: {
           select: {
             id: true,
             username: true,
@@ -440,10 +434,8 @@ export class CashbackService {
     const statuses = cashbacks.map(cashback => ({
       id: cashback.id,
       amount: cashback.amount,
-      status: cashback.status === 'active' ? 'начислен' : 'отменен',
-      reason: cashback.reason,
+      status: 'начислен',
       createdAt: cashback.createdAt,
-      cancelledAt: cashback.cancelledAt,
       receipt: cashback.receipt,
       promotion: cashback.promotion,
       items: cashback.items,
@@ -493,7 +485,6 @@ export class CashbackService {
             domain: true,
           },
         },
-        cancelledByAdmin: {
           select: {
             id: true,
             username: true,
