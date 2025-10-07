@@ -338,11 +338,7 @@ export class CashbackService {
         date_to: { gte: now },
       },
       include: {
-        products: {
-          include: {
-            product: true,
-          },
-        },
+        products: true,
         condition: true,
       },
     });
@@ -499,11 +495,13 @@ export class CashbackService {
   }
 
   private normalizeProductName(name: string): string {
-    return name
+    const normalized = name
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+    this.logger.debug(`normalizeProductName: "${name}" -> "${normalized}"`);
+    return normalized;
   }
 
   private calculateNameSimilarity(name1: string, name2: string): number {
@@ -520,7 +518,9 @@ export class CashbackService {
       }
     }
     
-    return matches / Math.max(words1.length, words2.length);
+    const similarity = matches / Math.max(words1.length, words2.length);
+    this.logger.debug(`calculateNameSimilarity: "${name1}" vs "${name2}" = ${similarity} (matches: ${matches}, words1: ${words1.length}, words2: ${words2.length})`);
+    return similarity;
   }
 
   private async findProductBySku(sku?: string, promotionId?: string) {

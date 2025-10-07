@@ -223,6 +223,8 @@ export class AdminFnsController {
       throw new BadRequestException('FNS request not found');
     }
 
+    this.logger.log(`FNS request ${id} has ${request.cashbacks?.length || 0} cashbacks and receipt: ${request.receipt ? `ID ${request.receipt.id}` : 'none'}`);
+
     await this.prisma.$transaction(async (tx) => {
       if (request.cashbacks && request.cashbacks.length > 0) {
         for (const cashback of request.cashbacks) {
@@ -248,13 +250,19 @@ export class AdminFnsController {
       }
 
       if (request.receipt) {
-        await tx.receiptProduct.deleteMany({
+        this.logger.log(`Deleting receipt ${request.receipt.id} and its products`);
+        
+        const deletedProducts = await tx.receiptProduct.deleteMany({
           where: { receiptId: request.receipt.id },
         });
+        this.logger.log(`Deleted ${deletedProducts.count} receipt products`);
         
         await tx.receipt.delete({
           where: { id: request.receipt.id },
         });
+        this.logger.log(`Deleted receipt ${request.receipt.id}`);
+      } else {
+        this.logger.log(`No receipt to delete for FNS request ${id}`);
       }
 
       await tx.fnsRequest.delete({
