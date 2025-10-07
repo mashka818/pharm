@@ -487,6 +487,13 @@ export class FnsService {
   private extractPromotionIdFromHost(host: string): string | null {
     const parts = host.split('.');
     
+    // Специальная обработка для Punycode доменов
+    if (host.includes('xn----itbkgreg1a1b.xn--p1ai')) {
+      // Для api.xn----itbkgreg1a1b.xn--p1ai не извлекаем promotionId
+      // Это основной API домен
+      return null;
+    }
+    
     if (parts.length >= 3) {
       const potentialPromotionId = parts[0];
       
@@ -537,7 +544,7 @@ export class FnsService {
       }
     }
     
-    if (expectedDomain === 'чек-поинт.рф' || expectedDomain === 'xn----itbkgreg1a1b.xn--p1ai') {
+    if (expectedDomain === 'чек-поинт.рф' || expectedDomain === 'xn----itbkgreg1a1b.xn--p1ai' || expectedDomain === '91.236.198.205:4000') {
       return actualHost.includes('xn----itbkgreg1a1b.xn--p1ai') || 
              actualHost.includes('чек-поинт.рф') ||
              actualHost.includes('91.236.198.205') ||
