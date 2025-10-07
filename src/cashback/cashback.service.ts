@@ -345,14 +345,18 @@ export class CashbackService {
         date_to: { gte: now },
       },
       include: {
-        products: true,
+        products: {
+          include: {
+            product: true,
+          },
+        },
         condition: true,
       },
     });
     
     this.logger.debug(`Found ${offers.length} active offers for promotion ${promotionId}`);
     offers.forEach(offer => {
-      this.logger.debug(`Offer ${offer.id}: ${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'}, products: ${offer.products?.length || 0}`);
+      this.logger.debug(`Offer ${offer.id}: ${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'}, products: ${JSON.stringify(offer.products || [])}`);
     });
     
     return offers;
@@ -406,7 +410,7 @@ export class CashbackService {
   ): Promise<CashbackItemCalculation | null> {
     this.logger.debug(`Trying to match item "${receiptItem.name}" with offer ${offer.id} (${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'})`);
 
-    this.logger.debug(`Offer ${offer.id} has ${offer.products?.length || 0} products: ${JSON.stringify(offer.products?.map((p: any) => ({ id: p.id || p.product?.id, name: p.name || p.product?.name })) || [])}`);
+    this.logger.debug(`Offer ${offer.id} has ${offer.products?.length || 0} products: ${JSON.stringify(offer.products || [])}`);
     
     const matchingProduct = offer.products.find((productOffer: any) => {
       const product = productOffer.product || productOffer;
