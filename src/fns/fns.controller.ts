@@ -26,6 +26,17 @@ export class FnsController {
 
   constructor(private readonly fnsService: FnsService) {}
 
+  private extractPromotionIdFromReferer(referer?: string): string | null {
+    if (!referer) return null;
+    
+    const match = referer.match(/\/promotion\/([^\/]+)\//);
+    if (match && match[1]) {
+      return match[1];
+    }
+    
+    return null;
+  }
+
   @Post('scan-qr/:promotionId?')
   @ApiOperation({ 
     summary: 'Сканировать QR код чека для конкретной сети аптек',
@@ -61,9 +72,10 @@ export class FnsController {
     @Body() qrData: ScanQrCodeDto,
     @Request() req: any,
     @Headers('host') host: string,
+    @Headers('referer') referer?: string,
     @Param('promotionId') urlPromotionId?: string,
   ) {
-    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}, urlPromotionId: ${urlPromotionId}`);
+    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}, urlPromotionId: ${urlPromotionId}, referer: ${referer}`);
     
     if (!host) {
       throw new BadRequestException('Host header is required');
@@ -73,10 +85,18 @@ export class FnsController {
       throw new BadRequestException('User not authenticated');
     }
 
-    const promotionId = urlPromotionId || req.user?.promotionId;
+    const refererPromotionId = this.extractPromotionIdFromReferer(referer);
+    this.logger.log(`Extracted promotionId from referer: ${refererPromotionId}`);
+
+    const promotionId = urlPromotionId || refererPromotionId || req.user?.promotionId;
     
     if (!promotionId) {
-      throw new BadRequestException('Promotion ID not found in URL or token');
+      throw new BadRequestException('Promotion ID not found in URL, referer or token');
+    }
+
+    if (refererPromotionId && refererPromotionId !== req.user?.promotionId) {
+      this.logger.error(`PromotionId mismatch: referer has ${refererPromotionId}, token has ${req.user?.promotionId}`);
+      throw new BadRequestException('Promotion ID from referer does not match user token');
     }
 
     return this.fnsService.processScanQrCode(

@@ -27,20 +27,8 @@ export class FnsService {
     this.logger.log(`Processing QR scan for customer ${customerId}, promotion ${promotionId}, host: ${host}`);
     
     try { 
-      const hostPromotionId = this.extractPromotionIdFromHost(host);
-      this.logger.log(`Extracted promotionId from host: ${hostPromotionId}`);
-      
-      const finalPromotionId = hostPromotionId || promotionId;
-      this.logger.log(`Final promotionId: ${finalPromotionId}`);
-      
-      // Если promotionId извлечен из поддомена, проверяем что он совпадает с токеном пользователя
-      if (hostPromotionId && hostPromotionId !== promotionId) {
-        this.logger.error(`PromotionId mismatch: host has ${hostPromotionId}, token has ${promotionId}`);
-        throw new BadRequestException('Promotion ID from subdomain does not match user token');
-      }
-      
       const promotion = await this.prisma.promotion.findUnique({
-        where: { promotionId: finalPromotionId },
+        where: { promotionId },
       });
 
       if (!promotion) {
@@ -48,9 +36,9 @@ export class FnsService {
       }
 
       const expectedDomain = promotion.domain;
-      this.logger.log(`Domain validation - Expected: ${expectedDomain}, Actual: ${host}, Final PromotionId: ${finalPromotionId}`);
+      this.logger.log(`Domain validation - Expected: ${expectedDomain}, Actual: ${host}, PromotionId: ${promotionId}`);
       
-      const isDomainValid = this.isValidDomain(host, expectedDomain, finalPromotionId);
+      const isDomainValid = this.isValidDomain(host, expectedDomain, promotionId);
       
       this.logger.log(`Domain validation result: ${isDomainValid}`);
       
@@ -59,12 +47,12 @@ export class FnsService {
         throw new BadRequestException('Invalid domain for this promotion');
       }
 
-      const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, finalPromotionId);
+      const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
       
       const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimitsForPromotion(
         customerId, 
         qrData, 
-        finalPromotionId
+        promotionId
       );
       
       if (!canReceiveCashback) {
@@ -77,7 +65,7 @@ export class FnsService {
         };
       }
 
-      const dailyLimit = await this.checkDailyLimit(finalPromotionId);
+      const dailyLimit = await this.checkDailyLimit(promotionId);
       if (!dailyLimit.allowed) {
         return {
           requestId: null,
@@ -89,7 +77,7 @@ export class FnsService {
       const requestId = await this.fnsQueueService.addToQueueWithPromotion(
         qrData, 
         customerId, 
-        finalPromotionId
+        promotionId
       );
       
       return {
@@ -544,7 +532,7 @@ export class FnsService {
       }
     }
     
-    if (expectedDomain === 'чек-поинт.рф' || expectedDomain === 'xn----itbkgreg1a1b.xn--p1ai' || expectedDomain === '91.236.198.205:4000') {
+    if (expectedDomain === 'чек-поинт.рф' || expectedDomain === 'xn----itbkgreg1a1b.xn--p1ai' || expectedDomain === '91.236.198.205:4000' || expectedDomain === 'x-farm') {
       return actualHost.includes('xn----itbkgreg1a1b.xn--p1ai') || 
              actualHost.includes('чек-поинт.рф') ||
              actualHost.includes('91.236.198.205') ||
