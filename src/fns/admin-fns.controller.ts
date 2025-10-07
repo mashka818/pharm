@@ -208,9 +208,6 @@ export class AdminFnsController {
     @Body() body: { reason: string; confirm: boolean },
     @Request() req?: any
   ) {
-    if (!body.confirm) {
-      throw new BadRequestException('Confirmation required to delete FNS request');
-    }
 
     this.logger.warn(`Admin ${req.user?.id} deleting FNS request ${id}, reason: ${body.reason}`);
 
