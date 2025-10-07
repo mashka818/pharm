@@ -49,30 +49,27 @@ export class FnsService {
 
       const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
       
+      // Проверяем только на повторное сканирование
+      if (isRepeatedScan) {
+        return {
+          requestId: null,
+          status: 'rejected',
+          message: 'Данный чек уже был отсканирован ранее',
+        };
+      }
+
+      // Проверяем лимиты кешбека, но не отклоняем запрос
       const canReceiveCashback = await this.fnsCashbackService.checkCashbackLimitsForPromotion(
         customerId, 
         qrData, 
         promotionId
       );
       
-      if (!canReceiveCashback) {
-        return {
-          requestId: null,
-          status: 'rejected',
-          message: isRepeatedScan 
-            ? 'Данный чек уже был отсканирован ранее' 
-            : 'Cashback already received for this receipt in this network',
-        };
-      }
+      this.logger.log(`Cashback eligibility: ${canReceiveCashback}`);
 
+      // Проверяем дневной лимит, но не отклоняем запрос
       const dailyLimit = await this.checkDailyLimit(promotionId);
-      if (!dailyLimit.allowed) {
-        return {
-          requestId: null,
-          status: 'rejected',
-          message: 'Daily request limit exceeded for this network',
-        };
-      }
+      this.logger.log(`Daily limit check: allowed=${dailyLimit.allowed}, current=${dailyLimit.current}, limit=${dailyLimit.limit}`);
 
       const requestId = await this.fnsQueueService.addToQueueWithPromotion(
         qrData, 
@@ -80,11 +77,20 @@ export class FnsService {
         promotionId
       );
       
+      // Определяем сообщение в зависимости от доступности кешбека
+      let message = 'Receipt verification started';
+      if (!canReceiveCashback) {
+        message = 'Receipt accepted, but no cashback available';
+      } else if (!dailyLimit.allowed) {
+        message = 'Receipt accepted, but daily limit exceeded';
+      }
+
       return {
         requestId,
         status: 'pending',
-        message: 'Receipt verification started',
+        message,
         network: promotion.name,
+        cashbackEligible: canReceiveCashback && dailyLimit.allowed,
       };
     } catch (error) {
       this.logger.error('Error processing QR scan:', error);
@@ -333,28 +339,30 @@ export class FnsService {
             fnsRequest.promotionId
           );
           
+          const hasNegativeItems = this.checkForNegativeItems(result.receiptData);
+          if (hasNegativeItems) {
+            this.logger.warn(`Request ${requestId}: Receipt contains negative items, treating as return`);
+            await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
+              isReturn: true,
+              isFake: false,
+              fnsResponse: result,
+            });
+            return;
+          }
+          
+          // Создаем чек всегда, независимо от наличия кешбека
+          const receiptRecord = await this.createReceiptRecord(
+            result.receiptData, 
+            customerId, 
+            fnsRequest.promotionId, 
+            calculationResult.totalCashback,
+            calculationResult
+          );
+          
+          this.logger.log(`Receipt record created for organization INN ${receiptInn}, amount: ${result.receiptData?.total || 'unknown'}, items: ${result.receiptData?.items?.length || 0}`);
+          
+          // Начисляем кешбек только если он есть
           if (calculationResult.totalCashback > 0) {
-            const hasNegativeItems = this.checkForNegativeItems(result.receiptData);
-            if (hasNegativeItems) {
-              this.logger.warn(`Request ${requestId}: Receipt contains negative items, treating as return`);
-              await this.fnsQueueService.updateRequestStatus(requestId, 'rejected', {
-                isReturn: true,
-                isFake: false,
-                fnsResponse: result,
-              });
-              return;
-            }
-            
-            const receiptRecord = await this.createReceiptRecord(
-              result.receiptData, 
-              customerId, 
-              fnsRequest.promotionId, 
-              calculationResult.totalCashback,
-              calculationResult
-            );
-            
-            this.logger.log(`Receipt record created for organization INN ${receiptInn}, amount: ${result.receiptData?.total || 'unknown'}, items: ${result.receiptData?.items?.length || 0}`);
-            
             const awardResult = await this.cashbackService.awardCashback(
               customerId,
               requestId,
@@ -368,7 +376,7 @@ export class FnsService {
             
             this.logger.log(`Awarded cashback ${cashbackAmount} to customer ${customerId} (cashback ID: ${cashbackId})`);
           } else {
-            this.logger.log(`No eligible items for cashback in request ${requestId}`);
+            this.logger.log(`No eligible items for cashback in request ${requestId}, but receipt was created`);
           }
         } catch (error) {
           this.logger.error(`Error awarding cashback for request ${requestId}:`, error);
