@@ -26,7 +26,22 @@ export class FnsController {
 
   constructor(private readonly fnsService: FnsService) {}
 
-  private extractPromotionIdFromReferer(referer?: string): string | null {
+  private extractPromotionIdFromHost(host: string): string | null {
+    if (!host) return null;
+    
+    const parts = host.split('.');
+    
+    if (parts.length >= 3) {
+      const subdomain = parts[0];
+      if (subdomain && subdomain !== 'www' && subdomain !== 'api') {
+        return subdomain;
+      }
+    }
+    
+    return null;
+  }
+
+  private extractDomainFromReferer(referer?: string): string | null {
     if (!referer) return null;
     
     const match = referer.match(/\/promotion\/([^\/]+)\//);
@@ -85,18 +100,29 @@ export class FnsController {
       throw new BadRequestException('User not authenticated');
     }
 
-    const refererPromotionId = this.extractPromotionIdFromReferer(referer);
-    this.logger.log(`Extracted promotionId from referer: ${refererPromotionId}`);
+    const hostPromotionId = this.extractPromotionIdFromHost(host);
+    this.logger.log(`Extracted promotionId from host: ${hostPromotionId}`);
 
-    const promotionId = urlPromotionId || refererPromotionId || req.user?.promotionId;
+    const refererDomain = this.extractDomainFromReferer(referer);
+    this.logger.log(`Extracted domain from referer: ${refererDomain}`);
+
+    let promotionId = hostPromotionId || urlPromotionId;
+    
+    if (refererDomain && !promotionId) {
+      const promotion = await this.fnsService.findPromotionByDomain(refererDomain);
+      if (promotion) {
+        promotionId = promotion.promotionId;
+        this.logger.log(`Found promotion by domain: ${promotionId}`);
+      }
+    }
     
     if (!promotionId) {
-      throw new BadRequestException('Promotion ID not found in URL, referer or token');
+      throw new BadRequestException('Promotion ID not found in host, URL or referer domain');
     }
 
-    if (refererPromotionId && refererPromotionId !== req.user?.promotionId) {
-      this.logger.error(`PromotionId mismatch: referer has ${refererPromotionId}, token has ${req.user?.promotionId}`);
-      throw new BadRequestException('Promotion ID from referer does not match user token');
+    if (req.user?.promotionId && req.user.promotionId !== promotionId) {
+      this.logger.error(`PromotionId mismatch: user belongs to ${req.user.promotionId}, but request is for ${promotionId}`);
+      throw new BadRequestException('User does not belong to the specified promotion');
     }
 
     return this.fnsService.processScanQrCode(

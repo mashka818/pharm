@@ -23,6 +23,12 @@ export class FnsService {
     private readonly prisma: PrismaService,
   ) {}
 
+  async findPromotionByDomain(domain: string) {
+    return await this.prisma.promotion.findUnique({
+      where: { domain },
+    });
+  }
+
   async processScanQrCode(qrData: ScanQrCodeDto, customerId: number, promotionId: string, host: string) {
     this.logger.log(`Processing QR scan for customer ${customerId}, promotion ${promotionId}, host: ${host}`);
     
@@ -35,17 +41,7 @@ export class FnsService {
         throw new BadRequestException('Promotion not found');
       }
 
-      const expectedDomain = promotion.domain;
-      this.logger.log(`Domain validation - Expected: ${expectedDomain}, Actual: ${host}, PromotionId: ${promotionId}`);
-      
-      const isDomainValid = this.isValidDomain(host, expectedDomain, promotionId);
-      
-      this.logger.log(`Domain validation result: ${isDomainValid}`);
-      
-      if (!isDomainValid) {
-        this.logger.error(`Domain mismatch: expected ${expectedDomain}, got ${host}`);
-        throw new BadRequestException('Invalid domain for this promotion');
-      }
+      this.logger.log(`Using promotion: ${promotion.name} (${promotionId}) for host: ${host}`);
 
       const isRepeatedScan = await this.checkForRepeatedScan(qrData, customerId, promotionId);
       
@@ -540,7 +536,7 @@ export class FnsService {
       }
     }
     
-    if (expectedDomain === 'чек-поинт.рф' || expectedDomain === 'xn----itbkgreg1a1b.xn--p1ai' || expectedDomain === '91.236.198.205:4000' || expectedDomain === 'x-farm') {
+    if (expectedDomain === 'чек-поинт.рф' || expectedDomain === 'xn----itbkgreg1a1b.xn--p1ai' || expectedDomain === '91.236.198.205:4000') {
       return actualHost.includes('xn----itbkgreg1a1b.xn--p1ai') || 
              actualHost.includes('чек-поинт.рф') ||
              actualHost.includes('91.236.198.205') ||
