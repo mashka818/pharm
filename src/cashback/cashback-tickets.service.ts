@@ -16,12 +16,16 @@ export class CashbackTicketsService {
       throw new NotFoundException('Пользователь не найден');
     }
 
-    if (createTicketDto.amount > customer.bonuses) {
-      throw new BadRequestException('Недостаточно бонусов для вывода');
+    if (customer.bonuses <= 0) {
+      throw new BadRequestException('У вас нет бонусов для вывода');
     }
 
     if (createTicketDto.amount <= 0) {
       throw new BadRequestException('Сумма должна быть больше 0');
+    }
+
+    if (createTicketDto.amount > customer.bonuses) {
+      throw new BadRequestException('Недостаточно бонусов для вывода');
     }
 
     return await (this.prisma as any).cashbackTicket.create({

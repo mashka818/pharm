@@ -41,7 +41,7 @@ export class FnsController {
     return null;
   }
 
-  private extractDomainFromReferer(referer?: string): string | null {
+  private extractPromotionIdFromReferer(referer?: string): string | null {
     if (!referer) return null;
     
     const match = referer.match(/\/promotion\/([^\/]+)\//);
@@ -52,10 +52,10 @@ export class FnsController {
     return null;
   }
 
-  @Post('scan-qr/:domain?')
+  @Post('scan-qr/:promotionId?')
   @ApiOperation({ 
     summary: 'Сканировать QR код чека для конкретной сети аптек',
-    description: 'Принимает QR код чека и токен авторизации. domain может быть передан в URL пути или извлечен из referer.'
+    description: 'Принимает QR код чека и токен авторизации. promotionId может быть передан в URL пути или извлечен из referer.'
   })
   @ApiHeader({
     name: 'host',
@@ -88,9 +88,9 @@ export class FnsController {
     @Request() req: any,
     @Headers('host') host: string,
     @Headers('referer') referer?: string,
-    @Param('domain') urlDomain?: string,
+    @Param('promotionId') urlPromotionId?: string,
   ) {
-    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}, urlDomain: ${urlDomain}, referer: ${referer}`);
+    this.logger.log(`QR scan request from host: ${host}, user: ${req.user?.id}, urlPromotionId: ${urlPromotionId}, referer: ${referer}`);
     
     if (!host) {
       throw new BadRequestException('Host header is required');
@@ -103,27 +103,10 @@ export class FnsController {
     const hostPromotionId = this.extractPromotionIdFromHost(host);
     this.logger.log(`Extracted promotionId from host: ${hostPromotionId}`);
 
-    const refererDomain = this.extractDomainFromReferer(referer);
-    this.logger.log(`Extracted domain from referer: ${refererDomain}`);
+    const refererPromotionId = this.extractPromotionIdFromReferer(referer);
+    this.logger.log(`Extracted promotionId from referer: ${refererPromotionId}`);
 
-    let promotionId = hostPromotionId;
-    
-    // Приоритет: URL domain -> referer domain -> user token
-    if (urlDomain && !promotionId) {
-      const promotion = await this.fnsService.findPromotionByDomain(urlDomain);
-      if (promotion) {
-        promotionId = promotion.promotionId;
-        this.logger.log(`Found promotion by URL domain: ${promotionId}`);
-      }
-    }
-    
-    if (refererDomain && !promotionId) {
-      const promotion = await this.fnsService.findPromotionByDomain(refererDomain);
-      if (promotion) {
-        promotionId = promotion.promotionId;
-        this.logger.log(`Found promotion by referer domain: ${promotionId}`);
-      }
-    }
+    let promotionId = hostPromotionId || urlPromotionId || refererPromotionId;
     
     if (!promotionId) {
       promotionId = req.user?.promotionId;
@@ -131,7 +114,7 @@ export class FnsController {
     }
     
     if (!promotionId) {
-      throw new BadRequestException('Promotion ID not found in host, URL domain, referer domain or user token');
+      throw new BadRequestException('Promotion ID not found in host, URL, referer or user token');
     }
 
     if (req.user?.promotionId && req.user.promotionId !== promotionId) {
