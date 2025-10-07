@@ -117,7 +117,12 @@ export class FnsController {
     }
     
     if (!promotionId) {
-      throw new BadRequestException('Promotion ID not found in host, URL or referer domain');
+      promotionId = req.user?.promotionId;
+      this.logger.log(`Using promotionId from user token: ${promotionId}`);
+    }
+    
+    if (!promotionId) {
+      throw new BadRequestException('Promotion ID not found in host, URL, referer domain or user token');
     }
 
     if (req.user?.promotionId && req.user.promotionId !== promotionId) {
