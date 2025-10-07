@@ -396,16 +396,19 @@ export class CashbackService {
   ): Promise<CashbackItemCalculation | null> {
     this.logger.debug(`Trying to match item "${receiptItem.name}" with offer ${offer.id} (${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'})`);
 
-    const matchingProduct = offer.products.find((productOffer: any) =>
-      this.isProductMatch(receiptItem, productOffer.product)
-    );
+    const matchingProduct = offer.products.find((productOffer: any) => {
+      // Поддерживаем как старую структуру (productOffer.product), так и новую (productOffer напрямую)
+      const product = productOffer.product || productOffer;
+      return this.isProductMatch(receiptItem, product);
+    });
 
     if (!matchingProduct) {
       this.logger.debug(`Item "${receiptItem.name}" - no matching product in offer ${offer.id}`);
       return null;
     }
 
-    this.logger.debug(`Item "${receiptItem.name}" matched with product "${matchingProduct.product.name}" (ID: ${matchingProduct.product.id})`);
+    const product = matchingProduct.product || matchingProduct;
+    this.logger.debug(`Item "${receiptItem.name}" matched with product "${product.name}" (ID: ${product.id})`);
 
     if (offer.condition && !this.checkOfferCondition(receiptItem, offer.condition)) {
       this.logger.debug(`Item "${receiptItem.name}" - offer condition not met for offer ${offer.id}`);        
@@ -430,7 +433,7 @@ export class CashbackService {
       cashbackAmount,
       cashbackType: offer.profitType === 'static' ? 'amount' : 'percent',
       cashbackRate: offer.profit,
-      productId: matchingProduct.product.id,
+      productId: product.id,
       offerId: offer.id,
       offerName: `Акция: ${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'}`,
     };

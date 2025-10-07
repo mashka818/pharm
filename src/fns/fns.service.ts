@@ -859,7 +859,6 @@ export class FnsService {
     try {
       const existingRequest = await this.prisma.fnsRequest.findFirst({
         where: {
-          customerId,
           qrData: {
             path: ['fn'],
             equals: qrData.fn,
@@ -883,18 +882,24 @@ export class FnsService {
           id: true,
           createdAt: true,
           status: true,
+          customerId: true,
         },
       });
 
       if (existingRequest) {
+        const isSameCustomer = existingRequest.customerId === customerId;
+        const message = isSameCustomer 
+          ? `Клиент ${customerId} повторно сканирует чек. Первое сканирование: ${existingRequest.createdAt.toISOString()}, статус: ${existingRequest.status}`
+          : `Клиент ${customerId} пытается отсканировать чек, который уже был отсканирован клиентом ${existingRequest.customerId}. Первое сканирование: ${existingRequest.createdAt.toISOString()}, статус: ${existingRequest.status}`;
+        
         await this.createAdminNotification(
           'repeated_scan',
-          'Повторное сканирование чека',
-          `Клиент ${customerId} повторно сканирует чек. Первое сканирование: ${existingRequest.createdAt.toISOString()}, статус: ${existingRequest.status}`,
+          isSameCustomer ? 'Повторное сканирование чека' : 'Попытка сканирования уже использованного чека',
+          message,
           promotionId,
           customerId,
           existingRequest.id,
-          { originalRequestId: existingRequest.id, qrData }
+          { originalRequestId: existingRequest.id, qrData, originalCustomerId: existingRequest.customerId }
         );
         
         return true; 
