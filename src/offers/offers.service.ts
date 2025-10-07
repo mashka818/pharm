@@ -34,7 +34,9 @@ export class OffersService {
 
     this.filesService.deleteFile(offer.banner_image);
 
-    await this.offersConditionsService.remove(offer.conditionId);
+    if (offer.conditionId) {
+      await this.offersConditionsService.remove(offer.conditionId);
+    }
 
     await this.prisma.offer.delete({
       where: { id },

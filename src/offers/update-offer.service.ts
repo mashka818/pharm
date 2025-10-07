@@ -39,7 +39,9 @@ export class UpdateOfferService {
     let newCondition = prevOffer.condition;
 
     if ('conditionId' in updateOfferDto && !conditionId && prevOffer.conditionId) {
-      await this.offersConditionsService.remove(prevOffer.conditionId);
+      if (prevOffer.conditionId) {
+        await this.offersConditionsService.remove(prevOffer.conditionId);
+      }
       newCondition = null;
     } else {
       if (condition) {
@@ -65,7 +67,6 @@ export class UpdateOfferService {
     });
 
     if (productIds) {
-      // Валидация принадлежности товаров к подсети ПЕРЕД обновлением предложения
       const offer = await this.prisma.offer.findUnique({ where: { id }, select: { promotionId: true } });
       await this.validateProductsForPromotion(productIds, offer.promotionId);
       await this.productOfferService.updateProductsRelation(productIds, id);
@@ -74,9 +75,7 @@ export class UpdateOfferService {
     return await this.getOneOfferService.getOneWithProducts(id);
   }
 
-  /**
-   * Валидация товаров для промоакции - проверяет, что все товары принадлежат к указанной подсети
-   */
+  
   private async validateProductsForPromotion(productIds: number[], promotionId: string) {
     this.logger.log(`Validating ${productIds.length} products for promotion ${promotionId} during update`);
 
@@ -84,7 +83,6 @@ export class UpdateOfferService {
       throw new BadRequestException('At least one product is required for offer');
     }
 
-    // Проверяем товары из других подсетей
     const invalidProducts = await this.prisma.product.findMany({
       where: {
         id: { in: productIds },
@@ -114,7 +112,6 @@ export class UpdateOfferService {
       );
     }
 
-    // Проверяем существование всех товаров
     const existingProducts = await this.prisma.product.findMany({
       where: {
         id: { in: productIds },

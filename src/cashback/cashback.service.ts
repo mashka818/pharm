@@ -396,10 +396,14 @@ export class CashbackService {
   ): Promise<CashbackItemCalculation | null> {
     this.logger.debug(`Trying to match item "${receiptItem.name}" with offer ${offer.id} (${offer.profit}${offer.profitType === 'static' ? ' руб.' : '%'})`);
 
+    this.logger.debug(`Offer ${offer.id} has ${offer.products?.length || 0} products: ${JSON.stringify(offer.products?.map((p: any) => ({ id: p.id || p.product?.id, name: p.name || p.product?.name })) || [])}`);
+    
     const matchingProduct = offer.products.find((productOffer: any) => {
       // Поддерживаем как старую структуру (productOffer.product), так и новую (productOffer напрямую)
       const product = productOffer.product || productOffer;
-      return this.isProductMatch(receiptItem, product);
+      const isMatch = this.isProductMatch(receiptItem, product);
+      this.logger.debug(`Comparing "${receiptItem.name}" with "${product.name}" (ID: ${product.id}): ${isMatch}`);
+      return isMatch;
     });
 
     if (!matchingProduct) {
@@ -440,7 +444,10 @@ export class CashbackService {
   }
 
   private isProductMatch(receiptItem: ReceiptItem, product: any): boolean {
+    this.logger.debug(`isProductMatch: receiptItem.sku="${receiptItem.sku}", product.sku="${product.sku}"`);
+    
     if (receiptItem.sku && product.sku && receiptItem.sku === product.sku) {
+      this.logger.debug(`SKU match found: ${receiptItem.sku}`);
       return true;
     }
 
@@ -448,14 +455,19 @@ export class CashbackService {
       const receiptName = this.normalizeProductName(receiptItem.name);
       const productName = this.normalizeProductName(product.name);
       
+      this.logger.debug(`Name comparison: receiptName="${receiptName}", productName="${productName}"`);
+      
       if (receiptName === productName) {
+        this.logger.debug(`Exact name match found`);
         return true;
       }
 
       const similarity = this.calculateNameSimilarity(receiptName, productName);
+      this.logger.debug(`Name similarity: ${similarity} (threshold: 0.8)`);
       return similarity > 0.8;
     }
 
+    this.logger.debug(`No match found`);
     return false;
   }
 
@@ -617,7 +629,6 @@ export class CashbackService {
       throw new NotFoundException('Кешбек не найден');
     }
 
-    // В новой логике кешбеки уже начислены при создании, поэтому просто возвращаем успех
     this.logger.log(`Cashback ${cashbackId} is already confirmed (bonuses already awarded)`);
     return { success: true, confirmedAmount: cashback.amount };
   }
