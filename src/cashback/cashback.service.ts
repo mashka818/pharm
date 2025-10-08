@@ -505,10 +505,10 @@ export class CashbackService {
     const { profit, profitType } = offer;
 
     if (profitType === 'static') {
-      return Math.round(profit * 100);
+      return profit;
     } else {
-      const cashbackInKopecks = Math.round((receiptItem.total * profit) / 100);
-      return Math.round(cashbackInKopecks / 100); // Конвертируем копейки в рубли
+      const totalInRubles = receiptItem.total / 100;
+      return Math.round((totalInRubles * profit) / 100);
     }
   }
 
