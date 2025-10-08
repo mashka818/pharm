@@ -514,7 +514,7 @@ export class CashbackService {
   private normalizeProductName(name: string): string {
     const normalized = name
       .toLowerCase()
-      .replace(/[^\w\s]/g, '')
+      .replace(/[^\w\s\u0400-\u04FF]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
     this.logger.debug(`normalizeProductName: "${name}" -> "${normalized}"`);
@@ -599,12 +599,12 @@ export class CashbackService {
 
   private parsePrice(price: any): number {
     if (typeof price === 'number') {
-      return Math.round(price * 100);
+      return Math.round(price);
     }
     
     if (typeof price === 'string') {
       const numericPrice = parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.'));
-      return isNaN(numericPrice) ? 0 : Math.round(numericPrice * 100); 
+      return isNaN(numericPrice) ? 0 : Math.round(numericPrice); 
     }
     
     return 0;

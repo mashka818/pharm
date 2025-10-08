@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CashbackService } from './cashback.service';
 import { PrismaService } from '../prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { CashbackStatus } from '@prisma/client';
 
 describe('CashbackService', () => {
   let service: CashbackService;
@@ -174,7 +173,6 @@ describe('CashbackService', () => {
       const mockCashback = {
         id: 1,
         amount: 1000,
-        status: CashbackStatus.active,
         customerId: 1,
         fnsRequestId: 'request-123',
         customer: {
@@ -222,7 +220,6 @@ describe('CashbackService', () => {
     it('should throw BadRequestException for already cancelled cashback', async () => {
       const mockCashback = {
         id: 1,
-        status: CashbackStatus.cancelled,
       };
 
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
@@ -243,9 +240,8 @@ describe('CashbackService', () => {
       const mockCashback = {
         id: 1,
         amount: 1000,
-        status: CashbackStatus.active,
         customer: {
-          bonuses: 500, // Less than cashback amount
+          bonuses: 500, 
         },
       };
 
@@ -270,7 +266,6 @@ describe('CashbackService', () => {
         {
           id: 1,
           amount: 1000,
-          status: CashbackStatus.active,
           createdAt: new Date(),
         },
       ];
@@ -306,7 +301,6 @@ describe('CashbackService', () => {
 
   describe('private methods', () => {
     it('should normalize product names correctly', async () => {
-      // We need to access private method through reflection
       const normalizeMethod = (service as any).normalizeProductName;
       
       expect(normalizeMethod('АСПИРИН 500МГ №20')).toBe('аспирин 500мг 20');
@@ -326,7 +320,7 @@ describe('CashbackService', () => {
       const parseMethod = (service as any).parsePrice;
       
       expect(parseMethod(100)).toBe(100);
-      expect(parseMethod('100')).toBe(10000); // Converts to kopecks
+      expect(parseMethod('100')).toBe(10000); 
       expect(parseMethod('1.50')).toBe(150);
       expect(parseMethod('invalid')).toBe(0);
     });
