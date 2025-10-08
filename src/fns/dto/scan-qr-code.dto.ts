@@ -98,6 +98,37 @@ export class ScanQrCodeDto {
       }
     }
     
+    // Специальная обработка для очень поврежденных дат типа "06.1-0.-20T5 :10::1"
+    if (value.includes('.') && value.includes('T') && value.includes(':')) {
+      try {
+        // Извлекаем все цифры из строки
+        const digits = value.replace(/[^\d]/g, '');
+        
+        // Если у нас есть достаточно цифр для даты и времени
+        if (digits.length >= 10) {
+          // Пытаемся восстановить дату и время из цифр
+          // Формат: DDMMYYYYHHMM или DDMMYYYYHHMMSS
+          const day = digits.substring(0, 2);
+          const month = digits.substring(2, 4);
+          const year = digits.substring(4, 8);
+          const hours = digits.substring(8, 10);
+          const minutes = digits.substring(10, 12);
+          const seconds = digits.length >= 14 ? digits.substring(12, 14) : '00';
+          
+          // Проверяем валидность
+          if (parseInt(day) >= 1 && parseInt(day) <= 31 &&
+              parseInt(month) >= 1 && parseInt(month) <= 12 &&
+              parseInt(year) >= 2000 && parseInt(year) <= 2100 &&
+              parseInt(hours) >= 0 && parseInt(hours) <= 23 &&
+              parseInt(minutes) >= 0 && parseInt(minutes) <= 59) {
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+03:00`;
+          }
+        }
+      } catch (error) {
+        // Если не удалось исправить, возвращаем как есть
+      }
+    }
+    
     return value;
   })
   @IsDateString()
