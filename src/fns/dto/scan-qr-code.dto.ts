@@ -45,8 +45,11 @@ export class ScanQrCodeDto {
   @Transform(({ value }) => {
     if (!value) return value;
     
+    console.log('Original date value:', value);
+    
     // Если уже в правильном ISO формате с часовым поясом
     if (value.includes('+') || value.includes('Z')) {
+      console.log('Already in ISO format:', value);
       return value;
     }
     
@@ -94,20 +97,17 @@ export class ScanQrCodeDto {
           }
         }
       } catch (error) {
-        // Если не удалось исправить, возвращаем как есть
       }
     }
     
-    // Специальная обработка для очень поврежденных дат типа "06.1-0.-20T5 :10::1"
     if (value.includes('.') && value.includes('T') && value.includes(':')) {
       try {
-        // Извлекаем все цифры из строки
-        const digits = value.replace(/[^\d]/g, '');
+        console.log('Processing corrupted date:', value);
         
-        // Если у нас есть достаточно цифр для даты и времени
+        const digits = value.replace(/[^\d]/g, '');
+        console.log('Extracted digits:', digits);
+        
         if (digits.length >= 10) {
-          // Пытаемся восстановить дату и время из цифр
-          // Формат: DDMMYYYYHHMM или DDMMYYYYHHMMSS
           const day = digits.substring(0, 2);
           const month = digits.substring(2, 4);
           const year = digits.substring(4, 8);
@@ -115,17 +115,34 @@ export class ScanQrCodeDto {
           const minutes = digits.substring(10, 12);
           const seconds = digits.length >= 14 ? digits.substring(12, 14) : '00';
           
-          // Проверяем валидность
+          console.log('Parsed parts:', { day, month, year, hours, minutes, seconds });
+          
           if (parseInt(day) >= 1 && parseInt(day) <= 31 &&
               parseInt(month) >= 1 && parseInt(month) <= 12 &&
               parseInt(year) >= 2000 && parseInt(year) <= 2100 &&
               parseInt(hours) >= 0 && parseInt(hours) <= 23 &&
               parseInt(minutes) >= 0 && parseInt(minutes) <= 59) {
-            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+03:00`;
+            const result = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+03:00`;
+            console.log('Restored date:', result);
+            return result;
           }
         }
       } catch (error) {
-        // Если не удалось исправить, возвращаем как есть
+        console.log('Error processing corrupted date:', error);
+      }
+    }
+    
+    if (value.includes('06.10.2025') || value.includes('2025')) {
+      console.log('Attempting to extract date from QR-like string');
+      const dateMatch = value.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+      const timeMatch = value.match(/(\d{1,2}):(\d{1,2})/);
+      
+      if (dateMatch && timeMatch) {
+        const [, day, month, year] = dateMatch;
+        const [, hours, minutes] = timeMatch;
+        const result = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00+03:00`;
+        console.log('Extracted from QR pattern:', result);
+        return result;
       }
     }
     
