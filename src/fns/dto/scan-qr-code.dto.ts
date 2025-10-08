@@ -39,8 +39,8 @@ export class ScanQrCodeDto {
   sum: number;
 
   @ApiProperty({ 
-    description: 'Дата и время операции в московском времени (ISO 8601 или YYYY-MM-DD HH:mm:ss)', 
-    example: '2019-04-09T16:38:00+03:00' 
+    description: 'Дата и время операции в московском времени. Поддерживаемые форматы: ISO 8601, DD.MM.YYYY HH:mm, YYYY-MM-DD HH:mm:ss', 
+    example: '06.10.2025 10:14' 
   })
   @Transform(({ value }) => {
     if (!value) return value;
@@ -48,6 +48,22 @@ export class ScanQrCodeDto {
     // Если уже в правильном ISO формате с часовым поясом
     if (value.includes('+') || value.includes('Z')) {
       return value;
+    }
+    
+    // Если в формате DD.MM.YYYY HH:mm (из QR кода)
+    if (value.match(/^\d{1,2}\.\d{1,2}\.\d{4} \d{1,2}:\d{2}$/)) {
+      const [datePart, timePart] = value.split(' ');
+      const [day, month, year] = datePart.split('.');
+      const [hours, minutes] = timePart.split(':');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(2, '0')}:${minutes}:00+03:00`;
+    }
+    
+    // Если в формате DD.MM.YYYY HH:mm:ss (из QR кода)
+    if (value.match(/^\d{1,2}\.\d{1,2}\.\d{4} \d{1,2}:\d{2}:\d{2}$/)) {
+      const [datePart, timePart] = value.split(' ');
+      const [day, month, year] = datePart.split('.');
+      const [hours, minutes, seconds] = timePart.split(':');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(2, '0')}:${minutes}:${seconds}+03:00`;
     }
     
     // Если в формате YYYY-MM-DD HH:mm:ss (московское время)
@@ -58,6 +74,28 @@ export class ScanQrCodeDto {
     // Если в формате YYYY-MM-DDTHH:mm:ss (без часового пояса)
     if (value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
       return value + '+03:00';
+    }
+    
+    // Если дата повреждена (как в примере "06.1-0.-20T5 :10::1"), пытаемся исправить
+    if (value.includes('.') && value.includes('T')) {
+      try {
+        // Убираем лишние символы и пытаемся восстановить
+        const cleaned = value.replace(/[^\d\.T:]/g, '');
+        const parts = cleaned.split('T');
+        if (parts.length === 2) {
+          const [datePart, timePart] = parts;
+          const dateMatch = datePart.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+          const timeMatch = timePart.match(/(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+          
+          if (dateMatch && timeMatch) {
+            const [, day, month, year] = dateMatch;
+            const [, hours, minutes, seconds] = timeMatch;
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}+03:00`;
+          }
+        }
+      } catch (error) {
+        // Если не удалось исправить, возвращаем как есть
+      }
     }
     
     return value;
