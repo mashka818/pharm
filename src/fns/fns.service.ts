@@ -609,20 +609,7 @@ export class FnsService {
           parsedDate = new Date(receiptDate * 1000);
           this.logger.debug(`Parsed date from timestamp: ${receiptDate} -> ${parsedDate.toISOString()}`);
         } else if (typeof receiptDate === 'string') {
-          let dateString = receiptDate;
-          
-          if (receiptDate.includes('+') || receiptDate.includes('Z')) {
-            dateString = receiptDate;
-          } else {
-            if (receiptDate.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
-              dateString = receiptDate + '+03:00';
-            } else if (receiptDate.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
-              dateString = receiptDate.replace(' ', 'T') + '+03:00';
-            } else {
-              dateString = receiptDate + 'Z';
-            }
-          }
-          
+          const dateString = receiptDate + (receiptDate.includes('Z') ? '' : 'Z');
           parsedDate = new Date(dateString);
           this.logger.debug(`Parsed date from string: "${receiptDate}" -> "${dateString}" -> ${parsedDate.toISOString()}`);
         } else {
