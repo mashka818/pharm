@@ -505,10 +505,9 @@ export class CashbackService {
     const { profit, profitType } = offer;
 
     if (profitType === 'static') {
-      return profit;
+      return Math.round(profit * 100);
     } else {
-      const totalInRubles = receiptItem.total / 100;
-      return Math.round((totalInRubles * profit) / 100);
+      return Math.round((receiptItem.total * profit) / 100);
     }
   }
 
