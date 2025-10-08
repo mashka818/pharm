@@ -603,7 +603,36 @@ export class FnsService {
       const totalSum = receiptData.totalSum || receiptData.content?.totalSum || receiptData.sum || receiptData.content?.sum;
       const address = receiptData.retailPlace || receiptData.content?.retailPlace || receiptData.retailPlaceAddress || receiptData.content?.retailPlaceAddress || receiptData.address || 'Неизвестно';
       
-      const parsedDate = receiptDate ? (typeof receiptDate === 'number' ? new Date(receiptDate * 1000) : new Date(receiptDate)) : new Date();
+      let parsedDate: Date;
+      if (receiptDate) {
+        if (typeof receiptDate === 'number') {
+          parsedDate = new Date(receiptDate * 1000);
+          this.logger.debug(`Parsed date from timestamp: ${receiptDate} -> ${parsedDate.toISOString()}`);
+        } else if (typeof receiptDate === 'string') {
+          let dateString = receiptDate;
+          
+          if (receiptDate.includes('+') || receiptDate.includes('Z')) {
+            dateString = receiptDate;
+          } else {
+            if (receiptDate.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
+              dateString = receiptDate + '+03:00';
+            } else if (receiptDate.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+              dateString = receiptDate.replace(' ', 'T') + '+03:00';
+            } else {
+              dateString = receiptDate + 'Z';
+            }
+          }
+          
+          parsedDate = new Date(dateString);
+          this.logger.debug(`Parsed date from string: "${receiptDate}" -> "${dateString}" -> ${parsedDate.toISOString()}`);
+        } else {
+          parsedDate = new Date(receiptDate);
+          this.logger.debug(`Parsed date from other type: ${receiptDate} -> ${parsedDate.toISOString()}`);
+        }
+      } else {
+        parsedDate = new Date();
+        this.logger.debug(`No receipt date provided, using current time: ${parsedDate.toISOString()}`);
+      }
       
       const receipt = await this.prisma.receipt.create({
         data: {

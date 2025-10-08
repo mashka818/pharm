@@ -39,8 +39,28 @@ export class ScanQrCodeDto {
   sum: number;
 
   @ApiProperty({ 
-    description: 'Дата и время операции в формате ISO', 
-    example: '2019-04-09T16:38:00' 
+    description: 'Дата и время операции в московском времени (ISO 8601 или YYYY-MM-DD HH:mm:ss)', 
+    example: '2019-04-09T16:38:00+03:00' 
+  })
+  @Transform(({ value }) => {
+    if (!value) return value;
+    
+    // Если уже в правильном ISO формате с часовым поясом
+    if (value.includes('+') || value.includes('Z')) {
+      return value;
+    }
+    
+    // Если в формате YYYY-MM-DD HH:mm:ss (московское время)
+    if (value.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+      return value.replace(' ', 'T') + '+03:00';
+    }
+    
+    // Если в формате YYYY-MM-DDTHH:mm:ss (без часового пояса)
+    if (value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)) {
+      return value + '+03:00';
+    }
+    
+    return value;
   })
   @IsDateString()
   date: string;
