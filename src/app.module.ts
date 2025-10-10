@@ -22,6 +22,7 @@ import { WithdrawalVariantsModule } from './withdrawal-variants/withdrawal-varia
 import { SearchModule } from './search/search.module';
 import { FnsModule } from './fns/fns.module';
 import { CashbackModule } from './cashback/cashback.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { TenantMiddleware } from './auth/middleware/tenant.middleware';
 
 @Module({
@@ -52,6 +53,7 @@ import { TenantMiddleware } from './auth/middleware/tenant.middleware';
     SearchModule,
     FnsModule,
     CashbackModule,
+    NotificationsModule,
   ],
   providers: [PrismaService, TenantMiddleware],
 })

@@ -154,26 +154,27 @@ model UnconfirmedCustomer {
 }
 
 model Customer {
-  id                    Int                 @id @default(autoincrement())
+  id                    Int                    @id @default(autoincrement())
   name                  String
   surname               String
   patronymic            String?
   email                 String
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   promotionId           String
   role                  CustomerRole
   password              String
-  bonuses               Int                 @default(0)
+  bonuses               Int                    @default(0)
   mainWithdrawalVariant Int?
   address               String
-  promotion             Promotion           @relation(fields: [promotionId], references: [promotionId])
+  promotion             Promotion              @relation(fields: [promotionId], references: [promotionId])
   fnsRequests           FnsRequest[]
   receipts              Receipt[]
   withdrawalVariants    WithdrawalVariant[]
   cashbacks             Cashback[]         
   notifications         AdminNotification[]
   cashbackTickets       CashbackTicket[]
+  customerNotifications CustomerNotification[]
 
   @@unique([email, promotionId])
   @@map("customers")
@@ -436,4 +437,36 @@ enum TicketStatus {
   pending
   approved
   rejected
+}
+
+model CustomerNotification {
+  id              String                     @id @default(uuid())
+  type            CustomerNotificationType
+  title           String
+  message         String
+  customerId      Int
+  customer        Customer                   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  relatedEntityId String?
+  relatedEntityType String?
+  
+  metadata        Json?
+  isRead          Boolean                    @default(false)
+  createdAt       DateTime                   @default(now())
+  
+  @@map("customer_notifications")
+}
+
+enum CustomerNotificationType {
+  receipt_scanned
+  receipt_processing
+  receipt_approved
+  receipt_rejected
+  cashback_awarded
+  cashback_cancelled
+  cashback_confirmed
+  ticket_approved
+  ticket_rejected
+  bonuses_added
+  bonuses_deducted
 }

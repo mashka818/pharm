@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ScanQrCodeDto } from './dto/scan-qr-code.dto';
 
@@ -7,7 +8,10 @@ import { ScanQrCodeDto } from './dto/scan-qr-code.dto';
 export class FnsQueueService {
   private readonly logger = new Logger(FnsQueueService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async addToQueueWithPromotion(qrData: ScanQrCodeDto, customerId: number, promotionId: string): Promise<string> {
     this.logger.log(`Adding request to queue with promotion: ${JSON.stringify(qrData)}`);
@@ -47,6 +51,15 @@ export class FnsQueueService {
       }
 
       this.logger.log(`Request added to queue with ID: ${request.id}`);
+      
+      if (customerId) {
+        try {
+          await this.notificationsService.notifyReceiptScanned(customerId, 0);
+        } catch (error) {
+          this.logger.error('Failed to create receipt scanned notification:', error);
+        }
+      }
+      
       return request.id;
     } catch (error) {
       this.logger.error('Error adding request to queue:', error);
@@ -63,7 +76,6 @@ export class FnsQueueService {
       let promotionId = 'default-promotion';
       let validCustomerId = null;
       
-      // Проверяем существование customer и получаем его promotionId
       if (customerId) {
         try {
           const existingCustomer = await this.prisma.customer.findUnique({
@@ -83,7 +95,6 @@ export class FnsQueueService {
         }
       }
 
-      // Проверяем существование promotion
       try {
         const existingPromotion = await this.prisma.promotion.findUnique({
           where: { promotionId },
@@ -92,7 +103,6 @@ export class FnsQueueService {
         if (!existingPromotion) {
           this.logger.warn(`Promotion with ID ${promotionId} not found, will try to find any existing promotion`);
           
-          // Попробуем найти любую существующую promotion
           const anyPromotion = await this.prisma.promotion.findFirst();
           if (anyPromotion) {
             promotionId = anyPromotion.promotionId;
@@ -188,12 +198,50 @@ export class FnsQueueService {
         updateData.cashbackAwarded = data.cashbackAwarded;
       }
 
-      await this.prisma.fnsRequest.update({
+      const request = await this.prisma.fnsRequest.update({
         where: { id: requestId },
         data: updateData,
       });
 
       this.logger.log(`Updated request ${requestId} status to ${status}`);
+      
+      if (request.customerId) {
+        try {
+          if (status === 'processing') {
+            await this.notificationsService.notifyReceiptProcessing(
+              request.customerId,
+              request.receiptId || 0
+            );
+          } else if (status === 'success') {
+            await this.notificationsService.notifyReceiptApproved(
+              request.customerId,
+              request.receiptId || 0,
+              data?.cashbackAmount || 0
+            );
+          } else if (status === 'rejected' || status === 'failed') {
+            let reason = 'Чек не прошел проверку';
+            if (data?.isReturn) {
+              reason = 'Чек является возвратом';
+            } else if (data?.isFake) {
+              reason = 'Чек не найден в системе ФНС';
+            } else if (data?.rejectionReason) {
+              if (data.rejectionReason === 'NO_INN_IN_RECEIPT') {
+                reason = 'В чеке отсутствует ИНН';
+              } else if (data.rejectionReason === 'WRONG_PROMOTION_INN') {
+                reason = 'Чек не относится к данной сети';
+              }
+            }
+            
+            await this.notificationsService.notifyReceiptRejected(
+              request.customerId,
+              request.receiptId || 0,
+              reason
+            );
+          }
+        } catch (error) {
+          this.logger.error('Failed to create status notification:', error);
+        }
+      }
     } catch (error) {
       this.logger.error(`Error updating request ${requestId}:`, error);
     }

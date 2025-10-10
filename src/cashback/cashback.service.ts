@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface CashbackCalculationResult {
   totalCashback: number;
@@ -33,7 +34,10 @@ export interface ReceiptItem {
 export class CashbackService {
   private readonly logger = new Logger(CashbackService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async calculateCashback(
     receiptData: any,
@@ -134,6 +138,17 @@ export class CashbackService {
       }
 
       this.logger.log(`Successfully awarded cashback ${calculationResult.totalCashback} to customer ${customerId}`);
+      
+      try {
+        await this.notificationsService.notifyCashbackAwarded(
+          customerId,
+          cashback.id,
+          calculationResult.totalCashback
+        );
+      } catch (error) {
+        this.logger.error('Failed to create cashback awarded notification:', error);
+      }
+
       return { cashbackId: cashback.id, amount: calculationResult.totalCashback };
     });
   }
@@ -175,6 +190,18 @@ export class CashbackService {
       });
 
       this.logger.log(`Successfully cancelled cashback ${cashbackId}, refunded ${cashback.amount} bonuses`);
+      
+      try {
+        await this.notificationsService.notifyCashbackCancelled(
+          cashback.customerId,
+          cashbackId,
+          cashback.amount,
+          reason
+        );
+      } catch (error) {
+        this.logger.error('Failed to create cashback cancelled notification:', error);
+      }
+
       return { success: true, refundedAmount: cashback.amount };
     });
   }
@@ -514,8 +541,9 @@ export class CashbackService {
   private normalizeProductName(name: string): string {
     const normalized = name
       .toLowerCase()
-      .replace(/[^\w\s\u0400-\u04FF]/g, '')
-      .replace(/\s+/g, ' ')
+      .replace(/[^\w\s\u0400-\u04FF]/g, ' ') // Заменяем спецсимволы на пробелы
+      .replace(/(\d+)\s*(шт|мл|л|г|кг|мг)/g, '$1$2') // Склеиваем цифры с единицами измерения
+      .replace(/\s+/g, ' ') // Удаляем множественные пробелы
       .trim();
     this.logger.debug(`normalizeProductName: "${name}" -> "${normalized}"`);
     return normalized;
@@ -647,6 +675,17 @@ export class CashbackService {
     }
 
     this.logger.log(`Cashback ${cashbackId} is already confirmed (bonuses already awarded)`);
+    
+    try {
+      await this.notificationsService.notifyCashbackConfirmed(
+        cashback.customerId,
+        cashbackId,
+        cashback.amount
+      );
+    } catch (error) {
+      this.logger.error('Failed to create cashback confirmed notification:', error);
+    }
+
     return { success: true, confirmedAmount: cashback.amount };
   }
 

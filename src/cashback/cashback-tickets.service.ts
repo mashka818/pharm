@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCashbackTicketDto, UpdateCashbackTicketDto, CashbackTicketDto, TicketStatus } from './dto/cashback-ticket.dto';
 
 @Injectable()
 export class CashbackTicketsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async createTicket(createTicketDto: CreateCashbackTicketDto, customerId: number): Promise<CashbackTicketDto> {
     const customer = await this.prisma.customer.findUnique({
@@ -42,6 +46,14 @@ export class CashbackTicketsService {
     return await (this.prisma as any).cashbackTicket.findMany({
       where: {
         customerId: customerId,
+      },
+      include: {
+        admin: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -117,6 +129,27 @@ export class CashbackTicketsService {
             },
           },
         });
+        
+        try {
+          await this.notificationsService.notifyTicketApproved(
+            ticket.customerId,
+            ticketId,
+            ticket.amount
+          );
+        } catch (error) {
+          console.error('Failed to create ticket approved notification:', error);
+        }
+      } else if (updateTicketDto.status === 'rejected') {
+        try {
+          await this.notificationsService.notifyTicketRejected(
+            ticket.customerId,
+            ticketId,
+            ticket.amount,
+            updateTicketDto.adminComment
+          );
+        } catch (error) {
+          console.error('Failed to create ticket rejected notification:', error);
+        }
       }
 
       return updatedTicket;

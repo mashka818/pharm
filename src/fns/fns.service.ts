@@ -5,6 +5,7 @@ import { FnsCheckService } from './fns-check.service';
 import { FnsQueueService } from './fns-queue.service';
 import { FnsCashbackService } from './fns-cashback.service';
 import { CashbackService } from '../cashback/cashback.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma.service';
 import { VerifyReceiptDto } from './dto/verify-receipt.dto';
 import { ReceiptStatusDto } from './dto/receipt-status.dto';
@@ -20,6 +21,7 @@ export class FnsService {
     private readonly fnsQueueService: FnsQueueService,
     private readonly fnsCashbackService: FnsCashbackService,
     private readonly cashbackService: CashbackService,
+    private readonly notificationsService: NotificationsService,
     private readonly prisma: PrismaService,
   ) {}
 
